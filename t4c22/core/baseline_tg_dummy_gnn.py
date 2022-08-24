@@ -19,9 +19,10 @@ from t4c22.misc.t4c22_logging import t4c_apply_basic_logging_config
 from t4c22.t4c22_config import class_fractions, load_basedir
 
 
-HIDDEN_CHANNELS = 256
-NUM_LAYERS = 5
-BATCH_SIZE = 2
+HIDDEN_CHANNELS = 128
+NUM_LAYERS = 3
+BATCH_SIZE = 1
+NUM_WORKERS = 8
 EVAL_STEPS = 1
 EPOCHS = 20
 RUNS = 1
@@ -125,7 +126,7 @@ def train_epoch(model, predictor, dataset, optimizer, batch_size, device, city_c
 
     for data in tqdm(
         torch_geometric.loader.dataloader.DataLoader(
-            dataset, batch_size=batch_size, shuffle=True, num_workers=16
+            dataset, batch_size=batch_size, shuffle=True, num_workers=NUM_WORKERS
         ),
         "train",
         total=len(dataset) // batch_size,
