@@ -1,4 +1,15 @@
-# moved code from exploration/example_torch_geometric_dummy_GNN.ipynb
+#  Copyright 2022 Institute of Advanced Research in Artificial Intelligence (IARAI) GmbH.
+#  IARAI licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#  http://www.apache.org/licenses/LICENSE-2.0
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+# moved code from exploration/example_torch_geometric_dummy_GNN.ipynb with minor changes
 
 import statistics
 from collections import defaultdict
@@ -17,7 +28,6 @@ from t4c22.metric.masked_crossentropy import get_weights_from_class_fractions
 from t4c22.misc.notebook_helpers import restartkernel  # noqa:F401
 from t4c22.misc.t4c22_logging import t4c_apply_basic_logging_config
 from t4c22.t4c22_config import class_fractions, load_basedir
-
 
 HIDDEN_CHANNELS = 128
 NUM_LAYERS = 3
@@ -51,7 +61,9 @@ def main(city: str = "london", cache_dir: str = "/tmp/processed"):
         HIDDEN_CHANNELS, HIDDEN_CHANNELS, NUM_EDGE_CLASSES, NUM_LAYERS, DROPOUT
     ).to(device)
 
-    run_training(model, predictor, device, train_dataset, val_dataset, city_class_weights)
+    run_training(
+        model, predictor, device, train_dataset, val_dataset, city_class_weights
+    )
 
 
 def get_datasets(city: str, cache_dir: str):
@@ -69,7 +81,9 @@ def get_datasets(city: str, cache_dir: str):
     return train_dataset, val_dataset
 
 
-def run_training(model, predictor, device, train_dataset, val_dataset, city_class_weights):
+def run_training(
+    model, predictor, device, train_dataset, val_dataset, city_class_weights
+):
     train_losses = defaultdict(lambda: [])
     val_losses = defaultdict(lambda: -1)
 
@@ -118,7 +132,9 @@ def run_training(model, predictor, device, train_dataset, val_dataset, city_clas
         print(v)
 
 
-def train_epoch(model, predictor, dataset, optimizer, batch_size, device, city_class_weights):
+def train_epoch(
+    model, predictor, dataset, optimizer, batch_size, device, city_class_weights
+):
     model.train()
 
     losses = []
@@ -159,7 +175,9 @@ def train_epoch(model, predictor, dataset, optimizer, batch_size, device, city_c
 
 
 @torch.no_grad()
-def test_epoch(model, predictor, validation_dataset, batch_size, device, city_class_weights):
+def test_epoch(
+    model, predictor, validation_dataset, batch_size, device, city_class_weights
+):
     model.eval()
 
     y_hat_list = []

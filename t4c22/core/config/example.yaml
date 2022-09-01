@@ -1,0 +1,50 @@
+author: "Girdyuk Dmitry <girdyuk.dmitry@gmail.com>"
+experiment: "example"
+version: "0.0.1"
+
+defaults:
+  - _self_
+  - model: basic_model
+  - dataset: basic_dataset
+
+hydra:
+  run:
+    dir: ../../results/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
+
+seed: 3141592
+
+accelerator:
+  _target_: accelerate.Accelerator
+  #arguments
+  mixed_precision: no  # "no","fp16","bf16"
+  gradient_accumulation_step: 1
+  cpu: false
+  deepspeed_config: { }
+  fsdp_config: { }
+  log_with: tensorboard
+  logging_dir: logs/tensorboard/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  # attrs
+  distributed_type: NO # NO, MULTI_CPU, MULTI_GPU, DEEPSPEED, FSDP, TPU, MPS
+  # for distributed training
+  machine_rank: 0
+  main_process_ip: null
+  main_process_port: null
+  main_training_function: main
+  num_machines: 1
+  num_processes: 1
+
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 0.0005
+  weight_decay: 0.001
+
+loss_function:
+
+lr_scheduler:
+  _target_: torch.optim.le_scheduler.StepLR
+  step_size: 2
+  gamma: 0.9
+
+epoch_num: 10
+
+checkpoint_save_folder: checkpoints/
