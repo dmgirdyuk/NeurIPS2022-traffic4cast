@@ -1,3 +1,6 @@
 torch==1.11.0
 pyarrow
 h5py
+
+accelerate
+hydra-core
