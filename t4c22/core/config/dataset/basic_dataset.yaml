@@ -1,13 +1,9 @@
-train_dataloader:
-  _target_: ...
-  _recursive_: true
+_target_: t4c22.dataloading.t4c22_dataset_geometric.T4c22GeometricDataset
+_recursive_: true
 
-  dataset:
-    _target_: ...
-
-val_dataloader:
-  _target_: ...
-  _recursive_: true
-
-  dataset:
-    _target_: ...
+root: ${data_path}
+city: ${city}
+edge_attributes: ["speed_kph", "parsed_maxspeed", "importance", "oneway", "length_meters", "counter_distance"]  # "highway", "lanes", "tunnel"
+split: "train"  # "test"
+cachedir: ${data_path}/cachedir/
+limit: 10  # none
