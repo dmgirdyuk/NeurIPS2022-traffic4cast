@@ -24,12 +24,11 @@ import torch.functional
 import torch.nn as nn
 import torch.optim as optim
 from accelerate import Accelerator
-from torch_geometric.loader.dataloader import DataLoader
 from torch.optim.lr_scheduler import _LRScheduler  # noqa
+from torch_geometric.loader.dataloader import DataLoader
 from tqdm.auto import tqdm
 
 from t4c22.core.utils import get_logger
-
 
 _logger = get_logger(__file__)
 

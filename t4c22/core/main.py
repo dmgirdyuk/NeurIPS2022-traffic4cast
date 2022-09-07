@@ -27,14 +27,15 @@ from omegaconf import DictConfig
 from torch.optim.lr_scheduler import _LRScheduler  # noqa
 from torch.utils.data.dataloader import Dataset
 
-from t4c22.core.dataset import get_train_val_dataloaders, get_city_class_weights
+from t4c22.core.dataset import get_city_class_weights, get_train_val_dataloaders
 from t4c22.core.train import train
 from t4c22.core.utils import get_project_root, seed_everything
 
 
 def main(cfg: DictConfig) -> None:
     seed_everything(cfg.seed)
-    rmtree(cfg.dataset.cachedir, ignore_errors=True)
+    if cfg.clear_cachedir:
+        rmtree(cfg.dataset.cachedir, ignore_errors=True)
 
     accelerator: Accelerator = instantiate(cfg.accelerator)
 
@@ -53,9 +54,7 @@ def main(cfg: DictConfig) -> None:
     loss_function: Callable[[Any, Any], Any] = instantiate(
         cfg.loss_function, weight=city_class_weights, ignore_index=-1
     )
-    lr_scheduler: _LRScheduler = instantiate(
-        cfg.lr_scheduler, optimizer=optimizer
-    )
+    lr_scheduler: _LRScheduler = instantiate(cfg.lr_scheduler, optimizer=optimizer)
 
     train_dataloader, val_dataloader = get_train_val_dataloaders(dataset)
 
@@ -85,6 +84,6 @@ def main(cfg: DictConfig) -> None:
 if __name__ == "__main__":
     CONFIG_PATH = pjoin(get_project_root(), "t4c22", "core", "config")
     CONFIG_NAME = sys.argv[1] if len(sys.argv) > 1 else "config_example"
-    hydra.main(
-        config_path=CONFIG_PATH, config_name=CONFIG_NAME, version_base="1.2"
-    )(main)()
+    hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME, version_base="1.2")(
+        main
+    )()

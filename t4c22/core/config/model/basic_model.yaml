@@ -2,8 +2,8 @@ _target_: t4c22.core.models.baselines.T4c22GNN
 
 in_node_features: 4
 in_edge_features: 6  # len ${dataset.edge_attributes}
-hidden_features: 64
+hidden_features: 128
 out_features: 3  # 3 congestion classes (green, yellow, red)
-gnn_layer_num: 3
-node_edge_aggregation_layers_num: 3
+gnn_layer_num: 4
+node_edge_aggregation_layers_num: 5
 dropout_p: 0.1

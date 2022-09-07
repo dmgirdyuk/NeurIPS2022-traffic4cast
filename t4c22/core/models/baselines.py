@@ -52,7 +52,9 @@ class T4c22GNN(torch.nn.Module):
 
         self.node_gnn_layers = torch.nn.ModuleList(
             modules=[
-                GNNLayer(self.hidden_features, self.hidden_features, self.hidden_features)
+                GNNLayer(
+                    self.hidden_features, self.hidden_features, self.hidden_features
+                )
                 for _ in range(self.gnn_layer_num)
             ]
         )
@@ -93,7 +95,7 @@ class T4c22GNN(torch.nn.Module):
         node_emb_i = torch.index_select(node_emb, 0, data.edge_index[0])
         node_emb_j = torch.index_select(node_emb, 0, data.edge_index[1])
 
-        general_emb = torch.cat(((node_emb_i + node_emb_j) / 2, edge_emb), dim=-1)
+        general_emb = torch.cat((node_emb_j - node_emb_i, edge_emb), dim=-1)
 
         for layer in self.node_edge_aggregation_layers:
             general_emb = layer(edge_emb=general_emb)
@@ -149,6 +151,7 @@ class NodeEdgeAggregationLayer(nn.Module):
         self.emb_layer = nn.Sequential(
             nn.Linear(in_features, out_features),
             Swish(),
+            nn.BatchNorm1d(out_features),
         )
 
     def forward(self, edge_emb: torch.Tensor) -> torch.Tensor:
