@@ -12,13 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# TODO:
-#  - CUDA Out-of-Memory: https://huggingface.co/docs/accelerate/usage_guides/memory
-#  - add checkpointer callback
-import os
-from os.path import join as pjoin
-from pathlib import Path
-from typing import Any, Callable, Type, Union
+from typing import Any, Callable
 
 import torch.functional
 import torch.nn as nn
@@ -28,9 +22,10 @@ from torch.optim.lr_scheduler import _LRScheduler  # noqa
 from torch_geometric.loader.dataloader import DataLoader
 from tqdm.auto import tqdm
 
+from t4c22.core.checkpointer import CheckpointSaver
 from t4c22.core.utils import get_logger
 
-_logger = get_logger(__file__)
+_logger = get_logger(__name__)
 
 
 def train(
@@ -42,8 +37,7 @@ def train(
     lr_scheduler: _LRScheduler,
     accelerator: Accelerator,
     epoch_num: int,
-    checkpoint_save_folder: Union[str, Path],
-    checkpoint_save_prefix: str,
+    checkpoint_saver: CheckpointSaver,
 ) -> None:
     for epoch in tqdm(range(epoch_num)):
         _logger.info("Epoch %d/%d", epoch, epoch_num)
@@ -80,13 +74,8 @@ def train(
         accelerator.log({"validation_loss_epoch": total_val_loss}, step=epoch)
         _logger.info("Validation loss: %.5f", total_val_loss)
 
-    save_checkpoint(
-        model=model,
-        accelerator=accelerator,
-        epoch=epoch_num,
-        save_folder=checkpoint_save_folder,
-        tag_prefix=checkpoint_save_prefix,
-    )
+        checkpoint_saver.save(metric_val=total_val_loss.detach().numpy(), epoch=epoch)
+
     accelerator.end_training()
 
 
@@ -96,27 +85,3 @@ def preprocess_batch(data):
     data.edge_attr = data.edge_attr.nan_to_num(-1)
     data.y = data.y.nan_to_num(-1)
     data.y = data.y.long()
-
-
-def save_checkpoint(
-    model: nn.Module,
-    accelerator: Accelerator,
-    epoch: int,
-    save_folder: Union[str, Path],
-    tag_prefix: str = "model",
-) -> None:
-    os.makedirs(save_folder, exist_ok=True)
-    accelerator.save(
-        obj={"epoch": epoch, "model_state_dict": model.state_dict()},
-        f=pjoin(save_folder, f"{tag_prefix}_epoch_{epoch}.pt"),
-    )
-
-
-def load_checkpoint(
-    model_class: Type[nn.Module], load_path: Union[str, Path], accelerator: Accelerator
-) -> nn.Module:
-    # TODO: revisit
-    model = model_class()
-    checkpoint = torch.load(load_path)
-    model.load_state_dict(checkpoint["model_state_dict"])
-    return accelerator.prepare(model)

@@ -27,6 +27,7 @@ from omegaconf import DictConfig
 from torch.optim.lr_scheduler import _LRScheduler  # noqa
 from torch.utils.data.dataloader import Dataset
 
+from t4c22.core.checkpointer import CheckpointSaver
 from t4c22.core.dataset import get_city_class_weights, get_train_val_dataloaders
 from t4c22.core.train import train
 from t4c22.core.utils import get_project_root, seed_everything
@@ -55,6 +56,9 @@ def main(cfg: DictConfig) -> None:
         cfg.loss_function, weight=city_class_weights, ignore_index=-1
     )
     lr_scheduler: _LRScheduler = instantiate(cfg.lr_scheduler, optimizer=optimizer)
+    checkpoint_saver: CheckpointSaver = instantiate(
+        cfg.checkpoint_saver, accelerator=accelerator, model=model
+    )
 
     train_dataloader, val_dataloader = get_train_val_dataloaders(dataset)
 
@@ -74,8 +78,7 @@ def main(cfg: DictConfig) -> None:
         lr_scheduler=lr_scheduler,
         accelerator=accelerator,
         epoch_num=cfg.epoch_num,
-        checkpoint_save_folder=cfg.checkpoint_save_folder,
-        checkpoint_save_prefix=f"{cfg.experiment}_model",
+        checkpoint_saver=checkpoint_saver,
     )
 
     # evaluate()
