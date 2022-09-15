@@ -43,11 +43,11 @@ class T4c22GNN(torch.nn.Module):
         self.node_embedding_mlp = nn.Sequential(
             nn.Linear(self.in_node_features, self.hidden_features),
             nn.BatchNorm1d(self.hidden_features),
-            Swish(),
+            nn.PReLU(),
             nn.Dropout(p=self.dropout_p),
             nn.Linear(self.hidden_features, self.hidden_features),
             nn.BatchNorm1d(self.hidden_features),
-            Swish(),
+            nn.PReLU(),
             nn.Dropout(p=self.dropout_p),
         )
 
@@ -55,11 +55,11 @@ class T4c22GNN(torch.nn.Module):
         self.edge_embedding_mlp = nn.Sequential(
             nn.Linear(self.in_edge_features, self.hidden_features),
             nn.BatchNorm1d(self.hidden_features),
-            Swish(),
+            nn.PReLU(),
             nn.Dropout(p=self.dropout_p),
             nn.Linear(self.hidden_features, self.hidden_features),
             nn.BatchNorm1d(self.hidden_features),
-            Swish(),
+            nn.PReLU(),
             nn.Dropout(p=self.dropout_p),
         )
 
@@ -69,7 +69,6 @@ class T4c22GNN(torch.nn.Module):
                     in_features=self.hidden_features,
                     out_features=self.hidden_features,
                     hidden_features=self.hidden_features,
-                    dropout_p=dropout_p
                 )
                 for _ in range(self.gnn_layer_num)
             ]
@@ -78,7 +77,7 @@ class T4c22GNN(torch.nn.Module):
         self.final_aggregation_layer = nn.Sequential(
             nn.Linear(2 * self.hidden_features, self.hidden_features),
             nn.BatchNorm1d(self.hidden_features),
-            Swish(),
+            nn.PReLU(),
             nn.Dropout(p=self.dropout_p),
             nn.Linear(self.hidden_features, self.out_features),
         )
@@ -120,39 +119,32 @@ class GNNLayer(MessagePassing):  # noqa
         in_features: int,
         out_features: int,
         hidden_features: int,
-        dropout_p: float = 0.0,
     ):
         super().__init__(node_dim=-2, aggr="mean")
 
         self.message_net = nn.Sequential(
             nn.Linear(3 * in_features, hidden_features),
             nn.BatchNorm1d(hidden_features),
-            Swish(),
-            nn.Dropout(p=dropout_p),
+            nn.PReLU(),
             nn.Linear(hidden_features, out_features),
             nn.BatchNorm1d(out_features),
-            Swish(),
-            nn.Dropout(p=dropout_p),
+            nn.PReLU(),
         )
         self.node_update_net = nn.Sequential(
             nn.Linear(in_features + hidden_features, hidden_features),
             nn.BatchNorm1d(hidden_features),
-            Swish(),
-            nn.Dropout(p=dropout_p),
+            nn.PReLU(),
             nn.Linear(hidden_features, out_features),
             nn.BatchNorm1d(out_features),
-            Swish(),
-            nn.Dropout(p=dropout_p),
+            nn.PReLU(),
         )
         self.edge_update_net = nn.Sequential(
             nn.Linear(in_features + hidden_features, hidden_features),
             nn.BatchNorm1d(hidden_features),
-            Swish(),
-            nn.Dropout(p=dropout_p),
+            nn.PReLU(),
             nn.Linear(hidden_features, out_features),
             nn.BatchNorm1d(out_features),
-            Swish(),
-            nn.Dropout(p=dropout_p),
+            nn.PReLU(),
         )
 
     def forward(

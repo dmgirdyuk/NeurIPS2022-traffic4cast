@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple
+from typing import Tuple, cast
 
 import torch
-from torch.utils.data import random_split
+from torch.utils.data import Subset
 from torch_geometric.data import Dataset
 from torch_geometric.loader.dataloader import DataLoader
 
@@ -27,7 +27,9 @@ def get_train_val_dataloaders(
     dataset: Dataset, batch_size: int = 1, shuffle: bool = True, num_workers: int = 0
 ) -> Tuple[DataLoader, DataLoader]:
     spl = int(((0.8 * len(dataset)) // 2) * 2)
-    train_dataset, val_dataset = random_split(dataset, [spl, len(dataset) - spl])
+
+    train_dataset = cast(Dataset, Subset(dataset, range(spl)))
+    val_dataset = cast(Dataset, Subset(dataset, range(spl, len(dataset))))
 
     train_dataloader = DataLoader(
         dataset=train_dataset,
