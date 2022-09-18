@@ -29,6 +29,10 @@ class TorchRoadGraphMapping:
         # load road graph
         df_edges, df_nodes, df_supersegments = load_road_graph(root, city, skip_supersegments=skip_supersegments)
 
+        # STIL@home: quick fix for "oneway" column
+        mapping = {True: True, False: False, "True": True, "False": False}
+        df_edges["oneway"] = df_edges["oneway"].map(mapping).fillna(False).astype(bool)
+
         # `ExternalNodeId = int64 (the osm ids)`
         # `InternalNodeId = int (0,...,num_edges-1)`
 
@@ -73,7 +77,11 @@ class TorchRoadGraphMapping:
         self.edge_attributes = edge_attributes
         self.edge_attr = None
         if edge_attributes is not None:
-            self.edge_attr = torch.full(size=(len(self.edges), len(self.edge_attributes)), fill_value=float("nan"), dtype=torch.float64)
+            # STIL@home: reverting changes with float64 due to accelerate issue (for now)
+            # BTW, there should be no problem with using f32 instead of f64
+            # have no idea what does "truncation of u, v" means since here we just store
+            # edge attrs. Assert works fine for f32 as well.
+            self.edge_attr = torch.full(size=(len(self.edges), len(self.edge_attributes)), fill_value=float("nan"), dtype=torch.float32)
             assert len(self.edges) == len(self.edge_records)
             for i, edge in enumerate(self.edge_records):
                 for j, attr in enumerate(edge_attributes):

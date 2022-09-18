@@ -55,3 +55,7 @@ def get_city_class_weights(city: str = "london") -> torch.Tensor:
         )
     ).float()
     return city_class_weights
+
+# TODO:
+#  - implement new torch_graph_mapper that works with all the edge attrs
+#  - inherit new dataset from T4c22GeometricDataset and update torch_graph_mapper

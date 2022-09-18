@@ -40,10 +40,6 @@ def main(cfg: DictConfig) -> None:
 
     accelerator: Accelerator = instantiate(cfg.accelerator)
 
-    cfg.dataset.root = Path(cfg.dataset.root)
-    cfg.dataset.cachedir = Path(cfg.dataset.cachedir)
-    dataset: Dataset = instantiate(cfg.dataset)
-
     model: nn.Module = instantiate(cfg.model)
     optimizer: optim.Optimizer = instantiate(
         cfg.optimizer, params=filter(lambda p: p.requires_grad, model.parameters())
@@ -57,6 +53,9 @@ def main(cfg: DictConfig) -> None:
         cfg.checkpoint_saver, accelerator=accelerator, model=model
     )
 
+    cfg.dataset.root = Path(cfg.dataset.root)
+    cfg.dataset.cachedir = Path(cfg.dataset.cachedir)
+    dataset: Dataset = instantiate(cfg.dataset)
     train_dataloader, val_dataloader = get_train_val_dataloaders(dataset)
 
     accelerator.init_trackers("example_project", config={})

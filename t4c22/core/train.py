@@ -44,7 +44,7 @@ def train(
         total_train_loss, total_val_loss = torch.zeros(1), torch.zeros(1)
 
         model.train()
-        for batch_step, batch in enumerate(train_dataloader):
+        for batch_step, batch in enumerate(tqdm(train_dataloader)):
             with accelerator.accumulate(model):
                 preprocess_batch(batch)
                 optimizer.zero_grad()
@@ -60,7 +60,7 @@ def train(
         _logger.info("Training loss: %.5f", total_train_loss)
 
         model.eval()
-        for batch_step, batch in enumerate(val_dataloader):
+        for batch_step, batch in enumerate(tqdm(val_dataloader)):
             with torch.no_grad():
                 preprocess_batch(batch)
                 outputs = model(batch)
