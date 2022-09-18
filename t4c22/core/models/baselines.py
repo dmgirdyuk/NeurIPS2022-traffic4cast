@@ -31,7 +31,6 @@ class T4c22GNN(torch.nn.Module):
         gnn_layer_num: int = 3,
         dropout_p: float = 0.0,
     ):
-
         super().__init__()
         self.in_node_features = in_node_features
         self.in_edge_features = in_edge_features
@@ -104,15 +103,6 @@ class T4c22GNN(torch.nn.Module):
         return general_emb
 
 
-class Swish(nn.Module):
-    def __init__(self, beta: int = 1):
-        super(Swish, self).__init__()
-        self.beta = beta
-
-    def forward(self, x: Tensor) -> Tensor:
-        return x * torch.sigmoid(self.beta * x)
-
-
 class GNNLayer(MessagePassing):  # noqa
     def __init__(
         self,
@@ -167,3 +157,12 @@ class GNNLayer(MessagePassing):  # noqa
     ) -> Tensor:  # noqa
         edge_attr += self.edge_update_net(torch.cat((edge_attr, x_j - x_i), dim=-1))
         return edge_attr
+
+
+class Swish(nn.Module):
+    def __init__(self, beta: int = 1):
+        super().__init__()
+        self.beta = beta
+
+    def forward(self, x: Tensor) -> Tensor:
+        return x * torch.sigmoid(self.beta * x)

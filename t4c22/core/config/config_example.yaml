@@ -7,7 +7,8 @@ defaults:
   - model: basic_model
   - dataset: basic_dataset
 
-hydra_dir: D:/Projects/Python/NeurIPS2022-traffic4cast/results/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
+results_dir: D:/Projects/Python/NeurIPS2022-traffic4cast/results
+hydra_dir: ${results_dir}/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
 hydra:
   run:
     dir: ${hydra_dir}
@@ -21,6 +22,9 @@ city: "london"  # london madrid melbourne
 seed: 3141592
 epoch_num: 30
 num_workers: 0
+
+pretrained: false
+checkpoint_path: ${results_dir}/models/model_checkpoint_best.pt
 
 optimizer:
   _target_: torch.optim.AdamW
@@ -37,7 +41,6 @@ lr_scheduler:
 
 accelerator:
   _target_: accelerate.accelerator.Accelerator
-
   cpu: false
   mixed_precision: "fp16"  # "no","fp16","bf16"
   gradient_accumulation_steps: 1
@@ -45,10 +48,8 @@ accelerator:
 #  log_with: "tensorboard"
 #  logging_dir: ${hydra_dir}/tensorboard/
 
-
 checkpoint_saver:
   _target_: t4c22.core.checkpointer.CheckpointSaver
-
   metric_name: "validation"
   max_history: 5
   should_minimize: true
