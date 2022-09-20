@@ -20,8 +20,8 @@ from shutil import copyfile
 from typing import List, Optional, Union
 
 import torch
-import torch.nn as nn
 from accelerate import Accelerator
+from torch import nn
 
 from t4c22.core.utils import get_logger
 

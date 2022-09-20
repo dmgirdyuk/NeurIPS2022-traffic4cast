@@ -15,7 +15,6 @@
 from typing import Tuple
 
 import torch
-import torch.nn.functional as F  # noqa
 from torch import Tensor, nn
 from torch_geometric.data import Data
 from torch_geometric.nn import MessagePassing  # noqa
@@ -103,6 +102,7 @@ class T4c22GNN(torch.nn.Module):
         return general_emb
 
 
+# pylint: disable=abstract-method, arguments-differ
 class GNNLayer(MessagePassing):  # noqa
     def __init__(
         self,

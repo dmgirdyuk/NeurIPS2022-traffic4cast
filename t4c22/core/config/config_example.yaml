@@ -18,18 +18,18 @@ hydra:
 data_path: D:/Data/traffic4cast/2022/raw
 clear_cachedir: false
 
-city: "london"  # london madrid melbourne
+city: "madrid"  # london madrid melbourne
 seed: 3141592
 epoch_num: 30
 num_workers: 0
 
-pretrained: false
+pretrained: true
 checkpoint_path: ${results_dir}/models/model_checkpoint_best.pt
 
 optimizer:
   _target_: torch.optim.AdamW
   lr: 0.001
-  weight_decay: 0.0  # 0.001
+  weight_decay: 0.001  # 0.001
 
 loss_function:
   _target_: torch.nn.CrossEntropyLoss

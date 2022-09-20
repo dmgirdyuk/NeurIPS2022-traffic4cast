@@ -19,11 +19,11 @@ from shutil import rmtree
 from typing import Any, Callable
 
 import hydra
-import torch.nn as nn
-import torch.optim as optim
 from accelerate import Accelerator
 from hydra.utils import instantiate
 from omegaconf import DictConfig
+from torch import nn
+from torch import optim
 from torch.optim.lr_scheduler import _LRScheduler  # noqa
 from torch.utils.data.dataloader import Dataset
 

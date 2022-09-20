@@ -29,8 +29,8 @@ disable = [
 ]
 
 [tool.pylint.TYPECHECK]
-ignore-modules = ["matplotlib", "numpy"]
-generated-members = ["numpy.*"]
+ignored-modules = ["matplotlib", "numpy"]
+generated-members = ["numpy.*", "torch.*"]
 
 [tool.pylint.FORMAT]
 max-line-length = 88
@@ -40,6 +40,6 @@ max-args = 10
 max-locals = 20
 max-branches = 25
 min-public-methods = 0
-variable-rgx = ["(.*[a-z][a-z0-9_]{1,30}|[a-z_]$"]
-argument-rgx = ["(.*[a-z][a-z0-9_]{1,30}|[a-z_]$"]
-attr-rgx = ["(.*[a-z][a-z0-9_]{1,30}|[a-z_]$"]
+variable-rgx = ["(.*[a-z][a-z0-9_]{1,30}|[a-z_])$"]
+argument-rgx = ["(.*[a-z][a-z0-9_]{1,30}|[a-z_])$"]
+attr-rgx = ["(.*[a-z][a-z0-9_]{1,30}|[a-z_])$"]
