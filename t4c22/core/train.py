@@ -16,9 +16,9 @@ from typing import Any, Callable
 
 import torch
 from accelerate import Accelerator
-from torch import nn
-from torch import optim
+from torch import nn, optim
 from torch.optim.lr_scheduler import _LRScheduler  # noqa
+from torch_geometric.data import Data
 from torch_geometric.loader.dataloader import DataLoader
 from tqdm.auto import tqdm
 
@@ -50,6 +50,10 @@ def train(
                 optimizer.zero_grad()
                 outputs = model(batch)
                 loss = loss_function(outputs, batch.y)
+
+                if torch.isnan(loss):
+                    print(loss)
+
                 total_train_loss += loss.sum().item()
                 accelerator.backward(loss)
                 optimizer.step()
@@ -79,9 +83,8 @@ def train(
     accelerator.end_training()
 
 
-def preprocess_batch(data):
+def preprocess_batch(data: Data):
     # Both data and labels are sparse. Loss function is masked by -1's
-    data.x = data.x.nan_to_num(-1)
-    data.edge_attr = data.edge_attr.nan_to_num(-1)
-    data.y = data.y.nan_to_num(-1)
-    data.y = data.y.long()
+    data["x"] = torch.log10((data.x + 1).nan_to_num(1e-6))
+    data["edge_attr"] = data.edge_attr.nan_to_num(0)
+    data["y"] = data.y.nan_to_num(-1).long()

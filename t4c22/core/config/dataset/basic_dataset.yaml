@@ -1,7 +1,7 @@
 _target_: t4c22.dataloading.t4c22_dataset_geometric.T4c22GeometricDataset
 
 root: ${data_path}
-city: ${city}
+city: "london"  # london madrid melbourne
 edge_attributes:
 #  - "speed_kph"
   - "parsed_maxspeed"

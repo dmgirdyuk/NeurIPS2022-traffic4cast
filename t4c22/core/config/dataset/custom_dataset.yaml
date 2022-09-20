@@ -1,0 +1,30 @@
+root: ${data_path}
+edge_attributes:
+  #  - "speed_kph"
+  - "parsed_maxspeed"
+  - "importance"
+  - "oneway"
+  - "length_meters"
+  - "counter_distance"
+  #  - "highway"
+  #  - "lanes"
+  #  - "tunnel"
+cachedir: ${data_path}/cachedir/
+
+train:
+  _target_: t4c22.core.dataset.T4c22TrainDataset
+
+  root: ${dataset.root}
+  edge_attributes: ${dataset.edge_attributes}
+
+  cachedir: ${dataset.cachedir}
+  limit: 400  # none
+
+test:
+  _target_: t4c22.dataloading.t4c22_dataset_geometric.T4c22GeometricDataset
+
+  root: ${dataset.root}
+  edge_attributes: ${dataset.edge_attributes}
+
+  split: "test"
+  cachedir: ${dataset.cachedir}

@@ -22,13 +22,12 @@ import hydra
 from accelerate import Accelerator
 from hydra.utils import instantiate
 from omegaconf import DictConfig
-from torch import nn
-from torch import optim
+from torch import nn, optim
 from torch.optim.lr_scheduler import _LRScheduler  # noqa
 from torch.utils.data.dataloader import Dataset
 
 from t4c22.core.checkpointer import CheckpointSaver, load_checkpoint
-from t4c22.core.dataset import get_city_class_weights, get_train_val_dataloaders
+from t4c22.core.dataset import get_avg_class_weights, get_train_val_dataloaders
 from t4c22.core.train import train
 from t4c22.core.utils import get_project_root, seed_everything
 
@@ -44,7 +43,7 @@ def main(cfg: DictConfig) -> None:
     optimizer: optim.Optimizer = instantiate(
         cfg.optimizer, params=filter(lambda p: p.requires_grad, model.parameters())
     )
-    city_class_weights = get_city_class_weights(city=cfg.city).to(accelerator.device)
+    city_class_weights = get_avg_class_weights().to(accelerator.device)
     loss_function: Callable[[Any, Any], Any] = instantiate(
         cfg.loss_function, weight=city_class_weights, ignore_index=-1
     )
@@ -55,7 +54,7 @@ def main(cfg: DictConfig) -> None:
 
     cfg.dataset.root = Path(cfg.dataset.root)
     cfg.dataset.cachedir = Path(cfg.dataset.cachedir)
-    dataset: Dataset = instantiate(cfg.dataset)
+    dataset: Dataset = instantiate(cfg.dataset.train)
     train_dataloader, val_dataloader = get_train_val_dataloaders(dataset)
 
     accelerator.init_trackers("example_project", config={})

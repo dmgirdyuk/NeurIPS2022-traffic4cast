@@ -12,15 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple, cast
+import random
+from functools import partial
+from pathlib import Path
+from typing import Optional, Tuple, cast
 
 import torch
+import torch_geometric
 from torch.utils.data import Subset
-from torch_geometric.data import Dataset
+from torch_geometric.data import Data, Dataset
 from torch_geometric.loader.dataloader import DataLoader
 
+from t4c22.core.utils import get_logger
+from t4c22.dataloading.road_graph_mapping import TorchRoadGraphMapping
 from t4c22.metric.masked_crossentropy import get_weights_from_class_fractions
-from t4c22.t4c22_config import class_fractions
+from t4c22.t4c22_config import (
+    DAY_T_FILTER,
+    cc_dates,
+    class_fractions,
+    day_t_filter_to_df_filter,
+    day_t_filter_weekdays_daytime_only,
+)
+
+_logger = get_logger(__name__)
 
 
 def get_train_val_dataloaders(
@@ -56,6 +70,109 @@ def get_city_class_weights(city: str = "london") -> torch.Tensor:
     ).float()
     return city_class_weights
 
-# TODO:
-#  - implement new torch_graph_mapper that works with all the edge attrs
-#  - inherit new dataset from T4c22GeometricDataset and update torch_graph_mapper
+
+def get_avg_class_weights() -> torch.Tensor:
+    city_class_weights = torch.Tensor(
+        [
+            (0.5367906303432076 + 0.4976221039083026 + 0.7018930324884697) / 3,
+            (0.35138063340805714 + 0.3829591430424158 + 0.2223245729555099) / 3,
+            (0.11182873624873524 + 0.1194187530492816 + 0.0757823945560204) / 3,
+        ]
+    )
+    city_class_weights /= city_class_weights.sum()
+    return city_class_weights.float()
+
+
+CITIES = ["london", "madrid", "melbourne"]
+
+
+class T4c22TrainDataset(Dataset):  # pylint: disable=abstract-method
+    def __init__(
+        self,
+        root: Path | str,
+        edge_attributes: Optional[list[str]] = None,
+        cachedir: Optional[Path | str] = None,
+        limit: Optional[int] = None,
+        day_t_filter: DAY_T_FILTER = day_t_filter_weekdays_daytime_only,
+        counters_only: bool = False,
+    ):
+        super().__init__()
+        self.root: Path = root
+        self.cachedir = cachedir
+        self.limit = limit
+        self.day_t_filter = day_t_filter
+        self.counters_only = counters_only
+
+        self.city_day_t: list[tuple[str, str, int]] = []
+        for city in CITIES:
+            self.city_day_t.extend(
+                [
+                    (city, day, t)
+                    for day in cc_dates(self.root, city=city, split="train")
+                    for t in range(4, 96)
+                    if self.day_t_filter(day, t)
+                ]
+            )
+        random.shuffle(self.city_day_t)  # seed should be already fixed in the main func
+
+        df_filter = partial(day_t_filter_to_df_filter, filter=day_t_filter)
+        self.city_road_graph_mapping = {
+            city: TorchRoadGraphMapping(
+                city=city,
+                edge_attributes=edge_attributes,
+                root=root,
+                df_filter=df_filter,
+                skip_supersegments=True,  # next time
+                counters_only=self.counters_only,
+            )
+            for city in CITIES
+        }
+
+        self.city = CITIES[0]
+        self.torch_road_graph_mapping = self.city_road_graph_mapping[self.city]
+
+    def len(self) -> int:
+        dataset_len = len(self.city_day_t)
+        if self.limit is not None:
+            return min(self.limit, dataset_len)
+        return dataset_len
+
+    def get(self, idx: int) -> torch_geometric.data.Data:
+        self.city, day, t = self.city_day_t[idx]
+        self.torch_road_graph_mapping = self.city_road_graph_mapping[self.city]
+
+        cache_file = self.cachedir / f"cc_labels_{self.city}_{day}_{t}.pt"
+        if self.cachedir is not None:
+            if cache_file.exists():
+                data = torch.load(cache_file)
+                return data
+
+        x = self.torch_road_graph_mapping.load_inputs_day_t(
+            basedir=self.root,
+            city=self.city,
+            split="train",
+            day=day,
+            t=t,
+            idx=idx,
+        )
+        y = self.torch_road_graph_mapping.load_cc_labels_day_t(
+            basedir=self.root,
+            city=self.city,
+            split="train",
+            day=day,
+            t=t,
+            idx=idx,
+        )
+
+        data = Data(
+            x=x,
+            edge_index=self.torch_road_graph_mapping.edge_index,
+            y=y,
+            edge_attr=self.torch_road_graph_mapping.edge_attr,
+        )
+
+        if self.cachedir is not None:
+            self.cachedir.mkdir(exist_ok=True, parents=True)
+            torch.save(data, cache_file)
+
+        return data
