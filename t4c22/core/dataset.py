@@ -79,7 +79,7 @@ def get_avg_class_weights() -> torch.Tensor:
             (0.11182873624873524 + 0.1194187530492816 + 0.0757823945560204) / 3,
         ]
     )
-    city_class_weights /= city_class_weights.sum()
+    city_class_weights = city_class_weights.sum() / city_class_weights
     return city_class_weights.float()
 
 

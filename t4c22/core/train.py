@@ -50,10 +50,6 @@ def train(
                 optimizer.zero_grad()
                 outputs = model(batch)
                 loss = loss_function(outputs, batch.y)
-
-                if torch.isnan(loss):
-                    print(loss)
-
                 total_train_loss += loss.sum().item()
                 accelerator.backward(loss)
                 optimizer.step()
