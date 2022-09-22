@@ -18,7 +18,6 @@ from pathlib import Path
 from typing import Optional, Tuple, cast
 
 import torch
-import torch_geometric
 from torch.utils.data import Subset
 from torch_geometric.data import Data, Dataset
 from torch_geometric.loader.dataloader import DataLoader
@@ -137,7 +136,7 @@ class T4c22TrainDataset(Dataset):  # pylint: disable=abstract-method
             return min(self.limit, dataset_len)
         return dataset_len
 
-    def get(self, idx: int) -> torch_geometric.data.Data:
+    def get(self, idx: int) -> Data:
         self.city, day, t = self.city_day_t[idx]
         self.torch_road_graph_mapping = self.city_road_graph_mapping[self.city]
 

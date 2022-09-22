@@ -113,26 +113,17 @@ class GNNLayer(MessagePassing):  # noqa
         super().__init__(node_dim=-2, aggr="mean")
 
         self.message_net = nn.Sequential(
-            nn.Linear(3 * in_features, hidden_features),
-            nn.BatchNorm1d(hidden_features),
-            nn.PReLU(),
-            nn.Linear(hidden_features, out_features),
+            nn.Linear(3 * in_features, out_features),
             nn.BatchNorm1d(out_features),
             nn.PReLU(),
         )
         self.node_update_net = nn.Sequential(
-            nn.Linear(in_features + hidden_features, hidden_features),
-            nn.BatchNorm1d(hidden_features),
-            nn.PReLU(),
-            nn.Linear(hidden_features, out_features),
+            nn.Linear(in_features + hidden_features, out_features),
             nn.BatchNorm1d(out_features),
             nn.PReLU(),
         )
         self.edge_update_net = nn.Sequential(
-            nn.Linear(in_features + hidden_features, hidden_features),
-            nn.BatchNorm1d(hidden_features),
-            nn.PReLU(),
-            nn.Linear(hidden_features, out_features),
+            nn.Linear(in_features + hidden_features, out_features),
             nn.BatchNorm1d(out_features),
             nn.PReLU(),
         )
