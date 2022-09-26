@@ -18,7 +18,6 @@ from pathlib import Path
 from shutil import rmtree
 from typing import Any, Callable
 
-import hydra
 from accelerate import Accelerator
 from hydra.utils import instantiate
 from omegaconf import DictConfig
@@ -26,6 +25,7 @@ from torch import nn, optim
 from torch.optim.lr_scheduler import _LRScheduler  # noqa
 from torch.utils.data.dataloader import Dataset
 
+import hydra
 from t4c22.core.checkpointer import CheckpointSaver, load_checkpoint
 from t4c22.core.dataset import get_avg_class_weights, get_train_val_dataloaders
 from t4c22.core.train import train
@@ -81,8 +81,6 @@ def main(cfg: DictConfig) -> None:
         epoch_num=cfg.epoch_num,
         checkpoint_saver=checkpoint_saver,
     )
-
-    # evaluate()
 
 
 if __name__ == "__main__":

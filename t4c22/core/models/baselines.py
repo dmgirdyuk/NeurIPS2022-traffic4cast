@@ -104,12 +104,7 @@ class T4c22GNN(torch.nn.Module):
 
 # pylint: disable=abstract-method, arguments-differ
 class GNNLayer(MessagePassing):  # noqa
-    def __init__(
-        self,
-        in_features: int,
-        out_features: int,
-        hidden_features: int,
-    ):
+    def __init__(self, in_features: int, out_features: int, hidden_features: int):
         super().__init__(node_dim=-2, aggr="mean")
 
         self.message_net = nn.Sequential(

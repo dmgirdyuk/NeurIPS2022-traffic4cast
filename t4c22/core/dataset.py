@@ -151,20 +151,10 @@ class T4c22TrainDataset(Dataset):  # pylint: disable=abstract-method  # noqa
                 return data
 
         x = self.torch_road_graph_mapping.load_inputs_day_t(
-            basedir=self.root,
-            city=self.city,
-            split="train",
-            day=day,
-            t=t,
-            idx=idx,
+            basedir=self.root, city=self.city, split="train", day=day, t=t, idx=idx,
         )
         y = self.torch_road_graph_mapping.load_cc_labels_day_t(
-            basedir=self.root,
-            city=self.city,
-            split="train",
-            day=day,
-            t=t,
-            idx=idx,
+            basedir=self.root, city=self.city, split="train", day=day, t=t, idx=idx,
         )
 
         data = Data(

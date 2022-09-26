@@ -61,11 +61,7 @@ class CheckpointSaver:
             model=self._model, epoch=epoch, save_name_prefix=save_name_prefix
         )
         self._storage.append(
-            Checkpoint(
-                metric_val=metric_val,
-                epoch=epoch,
-                save_path=save_path,
-            )
+            Checkpoint(metric_val=metric_val, epoch=epoch, save_path=save_path)
         )
         self._storage = sorted(
             self._storage, key=lambda x: x.metric_val, reverse=not self.should_minimize

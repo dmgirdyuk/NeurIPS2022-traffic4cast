@@ -1,17 +1,12 @@
 _target_: t4c22.dataloading.t4c22_dataset_geometric.T4c22GeometricDataset
-
 root: ${data_path}
 city: "london"  # london madrid melbourne
 edge_attributes:
-#  - "speed_kph"
-  - "parsed_maxspeed"
-  - "importance"
-  - "oneway"
-  - "length_meters"
-  - "counter_distance"
-#  - "highway"
-#  - "lanes"
-#  - "tunnel"
+    - parsed_maxspeed
+    - importance
+    - oneway
+    - length_meters
+    - counter_distance
 split: "train"  # "test"
 cachedir: ${data_path}/cachedir/
-limit: 400  # none
+limit: none  # none

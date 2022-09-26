@@ -7,7 +7,7 @@ defaults:
   - model: basic_model
   - dataset: custom_dataset
 
-results_dir: D:/Projects/Python/NeurIPS2022-traffic4cast/results
+results_dir: D:\projects\NeurIPS2022-traffic4cast/
 hydra_dir: ${results_dir}/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
 hydra:
   run:
@@ -15,7 +15,7 @@ hydra:
   job:
     chdir: True
 
-data_path: D:/Data/traffic4cast/2022/raw
+data_path: D:\projects\NeurIPS2022-traffic4cast\data
 clear_cachedir: false
 
 seed: 3141592
@@ -40,8 +40,9 @@ lr_scheduler:
 
 accelerator:
   _target_: accelerate.accelerator.Accelerator
-  cpu: false
-  mixed_precision: "fp16"  # "no","fp16","bf16"
+
+  cpu: true
+  mixed_precision: "no"  # "no","fp16","bf16"
   gradient_accumulation_steps: 1
   # TODO: tensorboard for some reason isn't working
 #  log_with: "tensorboard"
