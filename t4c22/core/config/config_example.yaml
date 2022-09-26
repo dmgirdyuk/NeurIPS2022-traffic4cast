@@ -1,5 +1,5 @@
 author: "Girdyuk Dmitry <girdyuk.dmitry@gmail.com>"
-experiment: "test0"
+submission_name: "full_dropout"
 version: "0.0.1"
 
 defaults:

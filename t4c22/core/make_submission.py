@@ -16,7 +16,7 @@ import sys
 import zipfile
 from os.path import join as pjoin
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional
 
 import pandas as pd
 import torch
@@ -59,10 +59,10 @@ def inference_cc_city_torch_geometric_to_pandas(
 
 def make_submission(
     model: nn.Module,
-    cities: list[str],
     base_dir: Path,
     submission_name: str,
     edge_attributes: list[str],
+    cities: Optional[list[str]] = None,
 ):
     if cities is None:
         cities = CITIES
@@ -117,13 +117,12 @@ def main(cfg: DictConfig) -> None:
     cfg.dataset.cachedir = Path(cfg.dataset.cachedir)
 
     model: nn.Module = instantiate(cfg.model)
-    checkpoint = torch.load(cfg.checkpoint_path, map_location=torch.device(cfg.device))
+    checkpoint = torch.load(cfg.checkpoint_path, map_location=accelerator.device)
     model.load_state_dict(checkpoint["model_state_dict"])
     model = accelerator.prepare(model)
     model.eval()
     make_submission(
         model,
-        cities=cfg.city,
         base_dir=cfg.dataset.root,
         submission_name=cfg.submission_name,
         edge_attributes=cfg.dataset.edge_attributes,
@@ -132,7 +131,7 @@ def main(cfg: DictConfig) -> None:
 
 if __name__ == "__main__":
     CONFIG_PATH = pjoin(get_project_root(), "t4c22", "core", "config")
-    CONFIG_NAME = sys.argv[1] if len(sys.argv) > 1 else "config_eval"
+    CONFIG_NAME = sys.argv[1] if len(sys.argv) > 1 else "config_example"
     hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME, version_base="1.2")(
         main
     )()
