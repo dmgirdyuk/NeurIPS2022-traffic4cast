@@ -1,6 +1,6 @@
 author: "Girdyuk Dmitry <girdyuk.dmitry@gmail.com>"
 experiment: "test0"
-version_base: "0.0.1"
+version: "0.0.1"
 
 defaults:
   - _self_
@@ -28,14 +28,14 @@ checkpoint_path: ${results_dir}/models/model_checkpoint_best.pt
 optimizer:
   _target_: torch.optim.AdamW
   lr: 0.001
-  weight_decay: 0.001
+  weight_decay: 0.0001
 
 loss_function:
   _target_: torch.nn.CrossEntropyLoss
 
 lr_scheduler:
   _target_: torch.optim.lr_scheduler.StepLR
-  step_size: 2
+  step_size: 1
   gamma: 0.8
 
 accelerator:
@@ -50,6 +50,6 @@ accelerator:
 checkpoint_saver:
   _target_: t4c22.core.checkpointer.CheckpointSaver
   metric_name: "validation"
-  max_history: 5
+  max_history: 3
   should_minimize: true
   save_dir: checkpoints/

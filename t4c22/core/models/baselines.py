@@ -41,11 +41,11 @@ class T4c22GNN(torch.nn.Module):
         self.node_embedding_mlp = nn.Sequential(
             nn.Linear(self.in_node_features, self.hidden_features),
             nn.BatchNorm1d(self.hidden_features),
-            nn.PReLU(),
+            nn.GELU(),
             nn.Dropout(p=self.dropout_p),
             nn.Linear(self.hidden_features, self.hidden_features),
             nn.BatchNorm1d(self.hidden_features),
-            nn.PReLU(),
+            nn.GELU(),
             nn.Dropout(p=self.dropout_p),
         )
 
@@ -53,11 +53,11 @@ class T4c22GNN(torch.nn.Module):
         self.edge_embedding_mlp = nn.Sequential(
             nn.Linear(self.in_edge_features, self.hidden_features),
             nn.BatchNorm1d(self.hidden_features),
-            nn.PReLU(),
+            nn.GELU(),
             nn.Dropout(p=self.dropout_p),
             nn.Linear(self.hidden_features, self.hidden_features),
             nn.BatchNorm1d(self.hidden_features),
-            nn.PReLU(),
+            nn.GELU(),
             nn.Dropout(p=self.dropout_p),
         )
 
@@ -75,7 +75,7 @@ class T4c22GNN(torch.nn.Module):
         self.final_aggregation_layer = nn.Sequential(
             nn.Linear(2 * self.hidden_features, self.hidden_features),
             nn.BatchNorm1d(self.hidden_features),
-            nn.PReLU(),
+            nn.GELU(),
             nn.Dropout(p=self.dropout_p),
             nn.Linear(self.hidden_features, self.out_features),
         )
@@ -115,17 +115,17 @@ class GNNLayer(MessagePassing):  # noqa
         self.message_net = nn.Sequential(
             nn.Linear(3 * in_features, out_features),
             nn.BatchNorm1d(out_features),
-            nn.PReLU(),
+            nn.GELU(),
         )
         self.node_update_net = nn.Sequential(
             nn.Linear(in_features + hidden_features, out_features),
             nn.BatchNorm1d(out_features),
-            nn.PReLU(),
+            nn.GELU(),
         )
         self.edge_update_net = nn.Sequential(
             nn.Linear(in_features + hidden_features, out_features),
             nn.BatchNorm1d(out_features),
-            nn.PReLU(),
+            nn.GELU(),
         )
 
     def forward(

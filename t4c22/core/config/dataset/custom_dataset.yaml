@@ -1,14 +1,13 @@
 root: ${data_path}
 edge_attributes:
-  #  - "speed_kph"
-  - "parsed_maxspeed"
-  - "importance"
-  - "oneway"
-  - "length_meters"
-  - "counter_distance"
-  #  - "highway"
-  #  - "lanes"
-  #  - "tunnel"
+  - parsed_maxspeed
+  - importance
+  - oneway
+  - length_meters
+  - counter_distance
+  #  - highway
+  #  - lanes
+  #  - tunnel
 cachedir: ${data_path}/cachedir/
 
 train:
@@ -18,7 +17,7 @@ train:
   edge_attributes: ${dataset.edge_attributes}
 
   cachedir: ${dataset.cachedir}
-  limit: 400  # none
+  limit: 400
 
 test:
   _target_: t4c22.dataloading.t4c22_dataset_geometric.T4c22GeometricDataset

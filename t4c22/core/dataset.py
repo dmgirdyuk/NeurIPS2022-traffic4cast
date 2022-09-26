@@ -37,9 +37,13 @@ _logger = get_logger(__name__)
 
 
 def get_train_val_dataloaders(
-    dataset: Dataset, batch_size: int = 1, shuffle: bool = True, num_workers: int = 0
+    dataset: Dataset,
+    ratio: float = 0.97,
+    batch_size: int = 1,
+    shuffle: bool = True,
+    num_workers: int = 0,
 ) -> Tuple[DataLoader, DataLoader]:
-    spl = int(((0.8 * len(dataset)) // 2) * 2)
+    spl = int(((ratio * len(dataset)) // 2) * 2)
 
     train_dataset = cast(Dataset, Subset(dataset, range(spl)))
     val_dataset = cast(Dataset, Subset(dataset, range(spl, len(dataset))))
@@ -82,10 +86,10 @@ def get_avg_class_weights() -> torch.Tensor:
     return city_class_weights.float()
 
 
-CITIES = ["london", "madrid", "melbourne"]
+CITIES = ["madrid", "melbourne", "london"]
 
 
-class T4c22TrainDataset(Dataset):  # pylint: disable=abstract-method
+class T4c22TrainDataset(Dataset):  # pylint: disable=abstract-method  # noqa
     def __init__(
         self,
         root: Path | str,
@@ -112,7 +116,7 @@ class T4c22TrainDataset(Dataset):  # pylint: disable=abstract-method
                     if self.day_t_filter(day, t)
                 ]
             )
-        random.shuffle(self.city_day_t)  # seed should be already fixed in the main func
+        # random.shuffle(self.city_day_t)  # seed should be already fixed in the main func
 
         df_filter = partial(day_t_filter_to_df_filter, filter=day_t_filter)
         self.city_road_graph_mapping = {
