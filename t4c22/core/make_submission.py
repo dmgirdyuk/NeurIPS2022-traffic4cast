@@ -45,7 +45,7 @@ def inference_cc_city_torch_geometric_to_pandas(
         data["x"] = torch.log10((data.x + 1).nan_to_num(1e-6))
         data["edge_attr"] = data.edge_attr.nan_to_num(0)
         y_hat: Tensor = predict(data)
-        df = test_dataset.torch_road_graph_mapping._torch_to_df_cc(
+        df = test_dataset.torch_road_graph_mapping._torch_to_df_cc(  # NOQA
             data=y_hat, day="test", t=idx
         )
         dfs.append(df)
@@ -66,26 +66,27 @@ def make_submission(
 ):
     if cities is None:
         cities = CITIES
-        for city in cities:
-            print("City ==> ", city)
-            test_dataset = T4c22GeometricDataset(
-                root=base_dir, city=city, split="test", edge_attributes=edge_attributes
-            )
-            df_city = inference_cc_city_torch_geometric_to_pandas(
-                test_dataset=test_dataset, predict=model
-            )
-            (base_dir / "submission" / submission_name / city / "labels").mkdir(
-                exist_ok=True, parents=True
-            )
-            write_df_to_parquet(
-                df=df_city,
-                fn=base_dir
-                / "submission"
-                / submission_name
-                / city
-                / "labels"
-                / f"cc_labels_test.parquet",
-            )
+
+    for city in cities:
+        print("City ==> ", city)
+        test_dataset = T4c22GeometricDataset(
+            root=base_dir, city=city, split="test", edge_attributes=edge_attributes
+        )
+        df_city = inference_cc_city_torch_geometric_to_pandas(
+            test_dataset=test_dataset, predict=model
+        )
+        (base_dir / "submission" / submission_name / city / "labels").mkdir(
+            exist_ok=True, parents=True
+        )
+        write_df_to_parquet(
+            df=df_city,
+            fn=base_dir
+            / "submission"
+            / submission_name
+            / city
+            / "labels"
+            / f"cc_labels_test.parquet",
+        )
 
     submission_zip = base_dir / "submission" / f"{submission_name}.zip"
     with zipfile.ZipFile(submission_zip, "w") as z:

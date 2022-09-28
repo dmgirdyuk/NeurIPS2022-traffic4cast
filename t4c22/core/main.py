@@ -55,7 +55,9 @@ def main(cfg: DictConfig) -> None:
     cfg.dataset.root = Path(cfg.dataset.root)
     cfg.dataset.cachedir = Path(cfg.dataset.cachedir)
     dataset: Dataset = instantiate(cfg.dataset.train)
-    train_dataloader, val_dataloader = get_train_val_dataloaders(dataset, shuffle=False)
+    train_dataloader, val_dataloader = get_train_val_dataloaders(
+        dataset, split_ratio=cfg.train_val_split
+    )
 
     accelerator.init_trackers("example_project", config={})
 

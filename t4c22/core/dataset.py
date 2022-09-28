@@ -12,11 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import random
+from __future__ import annotations
+
+from collections import defaultdict
 from functools import partial
 from pathlib import Path
-from typing import Optional, Tuple, cast
+from typing import Generator, Optional, Tuple
 
+import numpy as np
 import torch
 from torch.utils.data import Subset
 from torch_geometric.data import Data, Dataset
@@ -38,30 +41,43 @@ _logger = get_logger(__name__)
 
 def get_train_val_dataloaders(
     dataset: Dataset,
-    ratio: float = 0.97,
+    split_ratio: float = 0.5,
     batch_size: int = 1,
     shuffle: bool = True,
     num_workers: int = 0,
 ) -> Tuple[DataLoader, DataLoader]:
-    spl = int(((ratio * len(dataset)) // 2) * 2)
 
-    train_dataset = cast(Dataset, Subset(dataset, range(spl)))
-    val_dataset = cast(Dataset, Subset(dataset, range(spl, len(dataset))))
+    train_idxs, val_idxs = sample_dataset_by_weeks(dataset, split_ratio)
+    train_dataset = Subset(dataset, train_idxs)
+    val_dataset = Subset(dataset, val_idxs)
 
     train_dataloader = DataLoader(
-        dataset=train_dataset,
+        dataset=train_dataset,  # noqa
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
     )
     val_dataloader = DataLoader(
-        dataset=val_dataset,
+        dataset=val_dataset,  # noqa
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
     )
 
     return train_dataloader, val_dataloader
+
+
+def sample_dataset_by_weeks(
+    dataset: T4c22TrainDataset, ratio: float
+) -> tuple[list[int], list[int]]:
+    week_idxs = {idx: dataset.get_week(idx) for idx in range(len(dataset))}
+    weeks_to_sample = np.unique(list(week_idxs.values()))
+    np.random.shuffle(weeks_to_sample)
+    train_weeks = weeks_to_sample[: int(len(weeks_to_sample) * ratio)]
+    val_weeks = weeks_to_sample[int(len(weeks_to_sample) * ratio):]
+    train_idxs = [i for i, v in week_idxs.items() if v in train_weeks]
+    val_idxs = [i for i, v in week_idxs.items() if v in val_weeks]
+    return train_idxs, val_idxs
 
 
 def get_city_class_weights(city: str = "london") -> torch.Tensor:
@@ -95,28 +111,32 @@ class T4c22TrainDataset(Dataset):  # pylint: disable=abstract-method  # noqa
         root: Path | str,
         edge_attributes: Optional[list[str]] = None,
         cachedir: Optional[Path | str] = None,
-        limit: Optional[int] = None,
+        limit_ratio: Optional[float] = 1.0,
         day_t_filter: DAY_T_FILTER = day_t_filter_weekdays_daytime_only,
         counters_only: bool = False,
+        cities: Optional[list[str]] = None,
     ):
         super().__init__()
         self.root: Path = root
         self.cachedir = cachedir
-        self.limit = limit
         self.day_t_filter = day_t_filter
         self.counters_only = counters_only
+        self.cities = cities if cities is not None else CITIES
 
-        self.city_day_t: list[tuple[str, str, int]] = []
-        for city in CITIES:
-            self.city_day_t.extend(
-                [
-                    (city, day, t)
-                    for day in cc_dates(self.root, city=city, split="train")
+        slice_val = int(1 / limit_ratio)
+        self.city_slices = defaultdict(list)
+        self.city_day_t: list[tuple[str, int, str, int]] = []
+        for city in self.cities:
+            all_dates = cc_dates(self.root, city=city, split="train")
+            for i, week in enumerate(sample_dates(all_dates, 0, slice_val)):
+                self.city_slices[city].extend(
+                    (city, i, day, t)
+                    for day in week
                     for t in range(4, 96)
                     if self.day_t_filter(day, t)
-                ]
-            )
-        # random.shuffle(self.city_day_t)  # seed should be already fixed in the main func
+                )
+
+            self.city_day_t.extend(self.city_slices[city])
 
         df_filter = partial(day_t_filter_to_df_filter, filter=day_t_filter)
         self.city_road_graph_mapping = {
@@ -128,26 +148,29 @@ class T4c22TrainDataset(Dataset):  # pylint: disable=abstract-method  # noqa
                 skip_supersegments=True,  # next time
                 counters_only=self.counters_only,
             )
-            for city in CITIES
+            for city in self.cities
         }
-
-        self.city = CITIES[0]
+        self.city = self.cities[0]
         self.torch_road_graph_mapping = self.city_road_graph_mapping[self.city]
 
     def len(self) -> int:
         dataset_len = len(self.city_day_t)
-        if self.limit is not None:
-            return min(self.limit, dataset_len)
         return dataset_len
 
+    def get_week(self, idx: int) -> int:
+        _, week, _, _ = self.city_day_t[idx]
+        return week
+
     def get(self, idx: int) -> Data:
-        self.city, day, t = self.city_day_t[idx]
+        self.city, _, day, t = self.city_day_t[idx]
         self.torch_road_graph_mapping = self.city_road_graph_mapping[self.city]
 
         cache_file = self.cachedir / f"cc_labels_{self.city}_{day}_{t}.pt"
+        cache_file_edge = self.cachedir / f"edge_attr_{self.city}.pt"
         if self.cachedir is not None:
             if cache_file.exists():
                 data = torch.load(cache_file)
+                data["edge_attr"] = torch.load(cache_file_edge)
                 return data
 
         x = self.torch_road_graph_mapping.load_inputs_day_t(
@@ -157,15 +180,23 @@ class T4c22TrainDataset(Dataset):  # pylint: disable=abstract-method  # noqa
             basedir=self.root, city=self.city, split="train", day=day, t=t, idx=idx,
         )
 
-        data = Data(
-            x=x,
-            edge_index=self.torch_road_graph_mapping.edge_index,
-            y=y,
-            edge_attr=self.torch_road_graph_mapping.edge_attr,
-        )
-
+        data = Data(x=x, edge_index=self.torch_road_graph_mapping.edge_index, y=y,)
+        edge_attr = self.torch_road_graph_mapping.edge_attr
         if self.cachedir is not None:
             self.cachedir.mkdir(exist_ok=True, parents=True)
             torch.save(data, cache_file)
-
+            torch.save(edge_attr, cache_file_edge)
+        data["edge_attr"] = edge_attr
         return data
+
+
+def sample_dates(
+    dates: list, start: int = 0, every_val: int = 2
+) -> Generator[list, None, None]:
+    weeks = split_dates_list(dates)
+    for i in range(start, len(weeks), every_val):
+        yield weeks[i]
+
+
+def split_dates_list(dates: list, chunk_size: int = 7) -> list[list]:
+    return [dates[i : i + chunk_size] for i in range(0, len(dates), chunk_size)]

@@ -1,4 +1,9 @@
 root: ${data_path}
+cities:
+  - london
+  - melbourne
+  - madrid
+
 edge_attributes:
   - parsed_maxspeed
   - importance
@@ -17,7 +22,7 @@ train:
   edge_attributes: ${dataset.edge_attributes}
 
   cachedir: ${dataset.cachedir}
-  limit: 400
+  limit_ratio: 0.25
 
 test:
   _target_: t4c22.dataloading.t4c22_dataset_geometric.T4c22GeometricDataset

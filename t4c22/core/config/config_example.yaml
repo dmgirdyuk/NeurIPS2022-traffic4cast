@@ -16,11 +16,12 @@ hydra:
     chdir: True
 
 data_path: D:\projects\NeurIPS2022-traffic4cast\data
-clear_cachedir: false
+clear_cachedir: true
 
 seed: 3141592
 epoch_num: 30
 num_workers: 0
+train_val_split: 0.75
 
 pretrained: false
 checkpoint_path: ${results_dir}/models/model_checkpoint_best.pt
