@@ -14,7 +14,6 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 from functools import partial
 from pathlib import Path
 from typing import Generator, Optional, Tuple
@@ -34,6 +33,7 @@ from t4c22.t4c22_config import (
     class_fractions,
     day_t_filter_to_df_filter,
     day_t_filter_weekdays_daytime_only,
+    load_inputs,
 )
 
 _logger = get_logger(__name__)
@@ -68,13 +68,13 @@ def get_train_val_dataloaders(
 
 
 def sample_dataset_by_weeks(
-    dataset: T4c22TrainDataset, ratio: float
+    dataset: T4c22STILDataset, ratio: float
 ) -> tuple[list[int], list[int]]:
     week_idxs = {idx: dataset.get_week(idx) for idx in range(len(dataset))}
     weeks_to_sample = np.unique(list(week_idxs.values()))
     np.random.shuffle(weeks_to_sample)
     train_weeks = weeks_to_sample[: int(len(weeks_to_sample) * ratio)]
-    val_weeks = weeks_to_sample[int(len(weeks_to_sample) * ratio):]
+    val_weeks = weeks_to_sample[int(len(weeks_to_sample) * ratio) :]
     train_idxs = [i for i, v in week_idxs.items() if v in train_weeks]
     val_idxs = [i for i, v in week_idxs.items() if v in val_weeks]
     return train_idxs, val_idxs
@@ -102,14 +102,15 @@ def get_avg_class_weights() -> torch.Tensor:
     return city_class_weights.float()
 
 
-CITIES = ["madrid", "melbourne", "london"]
+CITIES = ["london", "madrid", "melbourne"]
 
 
-class T4c22TrainDataset(Dataset):  # pylint: disable=abstract-method  # noqa
+class T4c22STILDataset(Dataset):  # pylint: disable=abstract-method  # noqa
     def __init__(
         self,
         root: Path | str,
         edge_attributes: Optional[list[str]] = None,
+        split: str = "train",
         cachedir: Optional[Path | str] = None,
         limit_ratio: Optional[float] = 1.0,
         day_t_filter: DAY_T_FILTER = day_t_filter_weekdays_daytime_only,
@@ -118,40 +119,62 @@ class T4c22TrainDataset(Dataset):  # pylint: disable=abstract-method  # noqa
     ):
         super().__init__()
         self.root: Path = root
+        self.split = split
         self.cachedir = cachedir
+        self.limit_ratio = limit_ratio
         self.day_t_filter = day_t_filter
         self.counters_only = counters_only
         self.cities = cities if cities is not None else CITIES
 
-        slice_val = int(1 / limit_ratio)
-        self.city_slices = defaultdict(list)
         self.city_day_t: list[tuple[str, int, str, int]] = []
-        for city in self.cities:
-            all_dates = cc_dates(self.root, city=city, split="train")
-            for i, week in enumerate(sample_dates(all_dates, 0, slice_val)):
-                self.city_slices[city].extend(
-                    (city, i, day, t)
-                    for day in week
-                    for t in range(4, 96)
-                    if self.day_t_filter(day, t)
-                )
+        if self.split == "train":
+            df_filter = partial(day_t_filter_to_df_filter, filter=day_t_filter)
+            self.city_day_t = self._get_train_indexes()
+        elif self.split == "test":
+            df_filter = None
+            self.city_day_t = self._get_test_indexes()
+        else:
+            raise ValueError
 
-            self.city_day_t.extend(self.city_slices[city])
-
-        df_filter = partial(day_t_filter_to_df_filter, filter=day_t_filter)
         self.city_road_graph_mapping = {
             city: TorchRoadGraphMapping(
                 city=city,
                 edge_attributes=edge_attributes,
                 root=root,
                 df_filter=df_filter,
-                skip_supersegments=True,  # next time
+                skip_supersegments=True,
                 counters_only=self.counters_only,
             )
             for city in self.cities
         }
         self.city = self.cities[0]
         self.torch_road_graph_mapping = self.city_road_graph_mapping[self.city]
+
+    def _get_train_indexes(self) -> list[tuple[str, int, str, int]]:
+        city_day_t: list[tuple[str, int, str, int]] = []
+        slice_val = int(1 / self.limit_ratio)
+        for city in self.cities:
+            all_dates = cc_dates(self.root, city=city, split="train")
+            for i, week in enumerate(sample_dates(all_dates, 0, slice_val)):
+                city_day_t.extend(
+                    (city, i, day, t)
+                    for day in week
+                    for t in range(4, 96)
+                    if self.day_t_filter(day, t)
+                )
+        return city_day_t
+
+    def _get_test_indexes(self) -> list[tuple[str, int, str, int]]:
+        assert len(self.cities) == 1, "For test assume 1 dataset for 1 city."
+        city = self.cities[0]
+        num_tests = (
+            load_inputs(
+                basedir=self.root, split="test", city=city, day="test", df_filter=None
+            )["test_idx"].max()
+            + 1
+        )  # noqa
+        city_day_t = [(city, 0, "test", t) for t in range(num_tests)]
+        return city_day_t
 
     def len(self) -> int:
         dataset_len = len(self.city_day_t)
@@ -174,13 +197,30 @@ class T4c22TrainDataset(Dataset):  # pylint: disable=abstract-method  # noqa
                 return data
 
         x = self.torch_road_graph_mapping.load_inputs_day_t(
-            basedir=self.root, city=self.city, split="train", day=day, t=t, idx=idx,
-        )
-        y = self.torch_road_graph_mapping.load_cc_labels_day_t(
-            basedir=self.root, city=self.city, split="train", day=day, t=t, idx=idx,
+            basedir=self.root,
+            city=self.city,
+            split=self.split,
+            day=day,
+            t=t,
+            idx=idx,
         )
 
-        data = Data(x=x, edge_index=self.torch_road_graph_mapping.edge_index, y=y,)
+        y = None
+        if self.split == "train":
+            y = self.torch_road_graph_mapping.load_cc_labels_day_t(
+                basedir=self.root,
+                city=self.city,
+                split="train",
+                day=day,
+                t=t,
+                idx=idx,
+            )
+
+        data = Data(
+            x=x,
+            edge_index=self.torch_road_graph_mapping.edge_index,
+            y=y,
+        )
         edge_attr = self.torch_road_graph_mapping.edge_attr
         if self.cachedir is not None:
             self.cachedir.mkdir(exist_ok=True, parents=True)
@@ -192,7 +232,7 @@ class T4c22TrainDataset(Dataset):  # pylint: disable=abstract-method  # noqa
 
 def sample_dates(
     dates: list, start: int = 0, every_val: int = 2
-) -> Generator[list, None, None]:
+) -> Generator[list[str], None, None]:
     weeks = split_dates_list(dates)
     for i in range(start, len(weeks), every_val):
         yield weeks[i]

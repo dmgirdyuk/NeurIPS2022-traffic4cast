@@ -1,8 +1,11 @@
 _target_: t4c22.core.models.baselines.T4c22GNN
 
 in_node_features: 4
-in_edge_features: 5  # len ${dataset.edge_attributes}
-hidden_features: 150
+in_edge_features: 8  # len ${dataset.edge_attributes}
+cat_features_num: 1
+cat_emb_sizes:
+  - [12, 3]  # highway
+hidden_features: 256
 out_features: 3  # 3 congestion classes (green, yellow, red)
 gnn_layer_num: 6
-dropout_p: 0.6
+dropout_p: 0.8

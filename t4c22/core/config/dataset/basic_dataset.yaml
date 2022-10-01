@@ -3,32 +3,33 @@ cities:
   - london
   - melbourne
   - madrid
-
 edge_attributes:
   - parsed_maxspeed
   - importance
-  - oneway
   - length_meters
   - counter_distance
-  #  - highway
-  #  - lanes
-  #  - tunnel
+  - oneway
+  - lanes
+  - tunnel
+  # categorical
+  - highway
 cachedir: ${data_path}/cachedir/
 
 train:
-  _target_: t4c22.core.dataset.T4c22TrainDataset
+  _target_: t4c22.core.dataset.T4c22STILDataset
 
   root: ${dataset.root}
   edge_attributes: ${dataset.edge_attributes}
 
   cachedir: ${dataset.cachedir}
-  limit_ratio: 0.25
+  limit_ratio: 0.5
+  split: train
 
 test:
-  _target_: t4c22.dataloading.t4c22_dataset_geometric.T4c22GeometricDataset
+  _target_: t4c22.core.dataset.T4c22STILDataset
 
   root: ${dataset.root}
   edge_attributes: ${dataset.edge_attributes}
 
-  split: "test"
   cachedir: ${dataset.cachedir}
+  split: test

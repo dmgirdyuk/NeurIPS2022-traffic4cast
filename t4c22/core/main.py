@@ -18,6 +18,7 @@ from pathlib import Path
 from shutil import rmtree
 from typing import Any, Callable
 
+import hydra
 from accelerate import Accelerator
 from hydra.utils import instantiate
 from omegaconf import DictConfig
@@ -25,7 +26,6 @@ from torch import nn, optim
 from torch.optim.lr_scheduler import _LRScheduler  # noqa
 from torch.utils.data.dataloader import Dataset
 
-import hydra
 from t4c22.core.checkpointer import CheckpointSaver, load_checkpoint
 from t4c22.core.dataset import get_avg_class_weights, get_train_val_dataloaders
 from t4c22.core.train import train
@@ -56,17 +56,16 @@ def main(cfg: DictConfig) -> None:
     cfg.dataset.cachedir = Path(cfg.dataset.cachedir)
     dataset: Dataset = instantiate(cfg.dataset.train)
     train_dataloader, val_dataloader = get_train_val_dataloaders(
-        dataset, split_ratio=cfg.train_val_split
+        dataset, split_ratio=cfg.train_val_split, num_workers=cfg.num_workers
     )
 
     accelerator.init_trackers("example_project", config={})
 
     if cfg.pretrained:
         model = load_checkpoint(
-            model, load_path=cfg.checkpoint_path, accelerator=accelerator
+            model, load_path=cfg.checkpoint_path
         )
-    else:
-        model = accelerator.prepare(model)
+    model = accelerator.prepare(model)
 
     optimizer, train_dataloader, val_dataloader, lr_scheduler = accelerator.prepare(
         optimizer, train_dataloader, val_dataloader, lr_scheduler

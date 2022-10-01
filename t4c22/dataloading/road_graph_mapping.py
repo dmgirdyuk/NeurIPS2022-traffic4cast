@@ -21,6 +21,11 @@ from t4c22.t4c22_config import load_inputs
 from t4c22.t4c22_config import load_road_graph
 
 
+# STIL@home: can't pickle lambda
+def get_minus_one() -> int:
+    return -1
+
+
 class TorchRoadGraphMapping:
     def __init__(self, city: str, root: Path, df_filter, edge_attributes=None, skip_supersegments: bool = True, counters_only: bool = False):
         self.df_filter = df_filter
@@ -29,9 +34,38 @@ class TorchRoadGraphMapping:
         # load road graph
         df_edges, df_nodes, df_supersegments = load_road_graph(root, city, skip_supersegments=skip_supersegments)
 
-        # STIL@home: quick fix for "oneway" column
-        mapping = {True: True, False: False, "True": True, "False": False}
-        df_edges["oneway"] = df_edges["oneway"].map(mapping).fillna(False).astype(bool)
+        # STIL@home: label encoding of categorical variables
+        oneway_mapping = {True: True, False: False, "True": True, "False": False}
+        df_edges["oneway"] = df_edges["oneway"] \
+            .map(oneway_mapping) \
+            .fillna(False).astype(bool)
+
+        hw_mask = df_edges["highway"].str.contains("'")
+        df_edges.loc[hw_mask, "highway"] = df_edges.loc[hw_mask, "highway"].str.split("'").str[1]
+        hw_classes = [
+            "unclassified",
+            "residential",
+            "tertiary",
+            "secondary",
+            "primary",
+            "motorway_link",
+            "motorway",
+            "trunk",
+            "primary_link",
+            "trunk_link",
+            "tertiary_link",
+            "secondary_link",
+        ]
+        hw_mapping = {hw_class: i for i, hw_class in enumerate(hw_classes)}
+        df_edges["highway"] = df_edges["highway"].map(hw_mapping).astype(int)
+
+        df_edges.loc[df_edges["lanes"].str.contains("'"), "lanes"] = "0"
+        df_edges.loc[df_edges["lanes"].isin(["", " ", "\t", "1.5"]), "lanes"] = "0"
+        df_edges["lanes"] = df_edges["lanes"].astype(int).fillna(0)
+
+        df_edges["tunnel"] = df_edges["tunnel"] \
+            .map({"": False, "no": False}) \
+            .fillna(True).astype(bool)
 
         # `ExternalNodeId = int64 (the osm ids)`
         # `InternalNodeId = int (0,...,num_edges-1)`
@@ -46,7 +80,7 @@ class TorchRoadGraphMapping:
         self.nodes = self.counter_nodes + self.noncounter_nodes
 
         # enumerate nodes and edges and create mapping
-        self.node_to_int_mapping = defaultdict(lambda: -1)
+        self.node_to_int_mapping = defaultdict(get_minus_one)  # STIL@home: can't pickle lambda
         for i, k in enumerate(self.nodes):
             self.node_to_int_mapping[k] = i
 
@@ -56,7 +90,7 @@ class TorchRoadGraphMapping:
         )
 
         # edge_index_d: (ExternalNodeId,ExternalNodeId) -> InternalNodeId
-        self.edge_index_d = defaultdict(lambda: -1)
+        self.edge_index_d = defaultdict(get_minus_one)  # STIL@home: can't pickle lambda
         for i, (u, v) in enumerate(self.edges):
             self.edge_index_d[(u, v)] = i
 
