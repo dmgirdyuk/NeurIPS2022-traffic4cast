@@ -5,7 +5,9 @@ in_edge_features: 8  # len ${dataset.edge_attributes}
 cat_features_num: 1
 cat_emb_sizes:
   - [12, 3]  # highway
-hidden_features: 256
+hidden_features_mlp: [32, 128]
+hidden_features_gnn: 128
+hidden_final: 128
 out_features: 3  # 3 congestion classes (green, yellow, red)
-gnn_layer_num: 6
-dropout_p: 0.8
+gnn_layer_num: 10
+dropout: 0.5

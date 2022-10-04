@@ -27,86 +27,85 @@ class T4c22GNN(torch.nn.Module):
         in_edge_features: int,
         cat_features_num: int,
         cat_emb_sizes: list[tuple[int, int]],
-        hidden_features: int,
+        hidden_features_mlp: tuple[int, int],
+        hidden_features_gnn: int,
+        hidden_final: int,
         out_features: int,
         gnn_layer_num: int = 3,
-        dropout_p: float = 0.0,
+        dropout: float = 0.0,
     ):
         super().__init__()
-        self.in_node_features = in_node_features
-        self.in_edge_features = in_edge_features
+
         self.cat_features_num = cat_features_num
-        self.cat_emb_sizes = cat_emb_sizes
-        self.hidden_features = hidden_features
-        self.out_features = out_features
-        self.gnn_layer_num = gnn_layer_num
-        self.dropout_p = dropout_p
 
         self.node_emb_mlp = nn.Sequential(
-            nn.Linear(self.in_node_features, self.hidden_features),
-            nn.BatchNorm1d(self.hidden_features),
+            nn.Linear(in_node_features, hidden_features_mlp[0]),
+            nn.BatchNorm1d(hidden_features_mlp[0]),
             nn.GELU(),
-            nn.Dropout(p=self.dropout_p),
-            nn.Linear(self.hidden_features, self.hidden_features),
-            nn.BatchNorm1d(self.hidden_features),
+            nn.Dropout(p=dropout),
+            nn.Linear(hidden_features_mlp[0], hidden_features_mlp[1]),
+            nn.BatchNorm1d(hidden_features_mlp[1]),
             nn.GELU(),
-            nn.Dropout(p=self.dropout_p),
+            nn.Dropout(p=dropout),
         )
 
         self.edge_emb_cat_layers = nn.ModuleList(
-            nn.Embedding(num, dim) for num, dim in self.cat_emb_sizes
+            nn.Embedding(num, dim) for num, dim in cat_emb_sizes
         )
-        self.hidden_edge_cat = sum((dim for _, dim in self.cat_emb_sizes))
-        self.hidden_edge_num = self.hidden_features - self.hidden_edge_cat
+        hidden_edge_cat = sum((dim for _, dim in cat_emb_sizes))
+        numer_to_cat_ratio = hidden_edge_cat / hidden_features_mlp[0]
+        cat_emb_hidden_dim = int(numer_to_cat_ratio * hidden_features_mlp[1])
         self.edge_emb_cat_mlp = nn.Sequential(
-            nn.BatchNorm1d(self.hidden_edge_cat),
+            nn.BatchNorm1d(hidden_edge_cat),
             nn.GELU(),
-            nn.Dropout(p=self.dropout_p),
-            nn.Linear(self.hidden_edge_cat, self.hidden_edge_cat),
-            nn.BatchNorm1d(self.hidden_edge_cat),
+            nn.Dropout(p=dropout),
+            nn.Linear(hidden_edge_cat, cat_emb_hidden_dim),
+            nn.BatchNorm1d(cat_emb_hidden_dim),
             nn.GELU(),
-            nn.Dropout(p=self.dropout_p),
+            nn.Dropout(p=dropout),
         )
-        self.edge_emb_num_mlp = nn.Sequential(
+        hidden_edge_numer = hidden_features_mlp[0] - hidden_edge_cat
+        numer_emb_hidden_dim = hidden_features_mlp[1] - cat_emb_hidden_dim
+        self.edge_emb_numer_mlp = nn.Sequential(
             nn.Linear(
-                self.in_edge_features - self.cat_features_num, self.hidden_edge_num
+                in_edge_features - cat_features_num, hidden_edge_numer
             ),
-            nn.BatchNorm1d(self.hidden_edge_num),
+            nn.BatchNorm1d(hidden_edge_numer),
             nn.GELU(),
-            nn.Dropout(p=self.dropout_p),
-            nn.Linear(self.hidden_edge_num, self.hidden_edge_num),
-            nn.BatchNorm1d(self.hidden_edge_num),
+            nn.Dropout(p=dropout),
+            nn.Linear(hidden_edge_numer, numer_emb_hidden_dim),
+            nn.BatchNorm1d(numer_emb_hidden_dim),
             nn.GELU(),
-            nn.Dropout(p=self.dropout_p),
+            nn.Dropout(p=dropout),
         )
 
+        assert hidden_features_gnn == hidden_features_mlp[-1], "Dimensions mismatch."
         self.node_gnn_layers = torch.nn.ModuleList(
             modules=[
                 GNNLayer(
-                    in_features=self.hidden_features,
-                    out_features=self.hidden_features,
+                    in_features=hidden_features_gnn,
+                    out_features=hidden_features_gnn,
                 )
-                for _ in range(self.gnn_layer_num)
+                for _ in range(gnn_layer_num)
             ]
         )
 
         self.final_aggregation_layer = nn.Sequential(
-            nn.Linear(3 * self.hidden_features, self.hidden_features),
-            nn.BatchNorm1d(self.hidden_features),
+            nn.Linear(3 * hidden_features_gnn, hidden_final),
+            nn.BatchNorm1d(hidden_final),
             nn.GELU(),
-            nn.Dropout(p=self.dropout_p),
-            nn.Linear(self.hidden_features, self.out_features),
+            nn.Dropout(p=dropout),
+            nn.Linear(hidden_final, out_features),
         )
 
     def forward(self, data: Data) -> Tensor:
         edge_index: Tensor = data.edge_index
         node_features: Tensor = data.x
-        # 4 last columns are categorical and should be processed separately
-        edge_num_features: Tensor = data.edge_attr[:, : -self.cat_features_num]
+        edge_numer_features: Tensor = data.edge_attr[:, : -self.cat_features_num]
         edge_cat_features: Tensor = data.edge_attr[:, -self.cat_features_num :].int()
 
         node_emb = self.node_emb_mlp(node_features)
-        edge_emb_num = self.edge_emb_num_mlp(edge_num_features)
+        edge_emb_numer = self.edge_emb_numer_mlp(edge_numer_features)
         edge_emb_cat = torch.cat(
             [
                 emb_layer(edge_cat_features[:, i])
@@ -115,12 +114,16 @@ class T4c22GNN(torch.nn.Module):
             dim=-1,
         )
         edge_emb_cat = self.edge_emb_cat_mlp(edge_emb_cat)
-        edge_emb = torch.cat((edge_emb_num, edge_emb_cat), dim=-1)
+        edge_emb = torch.cat((edge_emb_numer, edge_emb_cat), dim=-1)
+        node_emb_pre_gnn, edge_emb_pre_gnn = node_emb, edge_emb
 
-        for layer in self.node_gnn_layers:
+        for i, layer in enumerate(self.node_gnn_layers):
             node_emb, edge_emb = layer(
                 x=node_emb, edge_index=edge_index, edge_attr=edge_emb
             )
+
+        node_emb += node_emb_pre_gnn
+        edge_emb += edge_emb_pre_gnn
 
         node_emb_i = torch.index_select(node_emb, 0, data.edge_index[0])
         node_emb_j = torch.index_select(node_emb, 0, data.edge_index[1])
@@ -133,22 +136,25 @@ class T4c22GNN(torch.nn.Module):
 
 # pylint: disable=abstract-method, arguments-differ
 class GNNLayer(MessagePassing):  # noqa
-    def __init__(self, in_features: int, out_features: int):  # , hidden_features: int
-        super().__init__(node_dim=-2, aggr="mean")
+    def __init__(self, in_features: int, out_features: int, dropout: float = 0.0):
+        super().__init__(node_dim=-2, aggr="sum")
 
         self.message_net = nn.Sequential(
             nn.Linear(3 * in_features, out_features),
-            nn.BatchNorm1d(out_features),
+            nn.LayerNorm(out_features),
+            nn.Dropout(p=dropout),
             nn.GELU(),
         )
         self.node_update_net = nn.Sequential(
             nn.Linear(2 * in_features, out_features),
-            nn.BatchNorm1d(out_features),
+            nn.LayerNorm(out_features),
+            nn.Dropout(p=dropout),
             nn.GELU(),
         )
         self.edge_update_net = nn.Sequential(
             nn.Linear(3 * in_features, out_features),
-            nn.BatchNorm1d(out_features),
+            nn.LayerNorm(out_features),
+            nn.Dropout(p=dropout),
             nn.GELU(),
         )
 
