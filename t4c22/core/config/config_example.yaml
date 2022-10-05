@@ -27,7 +27,7 @@ pretrained: false
 
 checkpoint_dir: ${results_dir}/models
 checkpoint_name: model_checkpoint_best
-split_city_models: true
+split_city_models: false
 
 optimizer:
   _target_: torch.optim.AdamW
@@ -45,8 +45,8 @@ lr_scheduler:
 accelerator:
   _target_: accelerate.accelerator.Accelerator
 
-  cpu: false
-  mixed_precision: "fp16"  # "no","fp16","bf16"
+  cpu: true
+  mixed_precision: "no"  # "no","fp16","bf16"
   gradient_accumulation_steps: 1
 
 checkpoint_saver:
