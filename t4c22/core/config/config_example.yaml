@@ -24,7 +24,10 @@ num_workers: 4
 train_val_split: 0.75
 
 pretrained: false
-checkpoint_path: ${results_dir}/models/model_checkpoint_best.pt
+
+checkpoint_dir: ${results_dir}/models
+checkpoint_name: model_checkpoint_best
+split_city_models: true
 
 optimizer:
   _target_: torch.optim.AdamW

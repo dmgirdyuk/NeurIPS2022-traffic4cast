@@ -37,15 +37,30 @@ from t4c22.misc.parquet_helpers import write_df_to_parquet
 _logger = get_logger(__file__)
 
 
+def prepare_model(cfg, checkpoint_path, accelerator):
+    model: nn.Module = instantiate(cfg.model)
+    model = load_checkpoint(model=model,
+                            load_path=checkpoint_path)
+    model = accelerator.prepare(model)
+    model.eval()
+    return model
+
 def main(cfg: DictConfig) -> None:
     accelerator: Accelerator = instantiate(cfg.accelerator)
     cfg.dataset.root = Path(cfg.dataset.root)
     cfg.dataset.cachedir = Path(cfg.dataset.cachedir)
 
-    model: nn.Module = instantiate(cfg.model)
-    model = load_checkpoint(model=model, load_path=cfg.checkpoint_path)
-    model = accelerator.prepare(model)
-    model.eval()
+    models = {}
+
+    if not cfg.split_city_models:
+        model = prepare_model(cfg, pjoin(cfg.checkpoint_dir, cfg.checkpoint_name+'.pt'), accelerator)
+    else:
+        model = None
+
+    for city in CITIES:
+        if cfg.split_city_models:
+            model = prepare_model(cfg, pjoin(cfg.checkpoint_dir, city, cfg.checkpoint_name+'.pt'), accelerator)
+        models[city] = model
 
     dataloaders = {
         city: accelerator.prepare(
@@ -56,13 +71,14 @@ def main(cfg: DictConfig) -> None:
         )
         for city in CITIES
     }
-
-    make_submission(
-        model,
-        dataloaders=dataloaders,
-        base_dir=cfg.dataset.root,
-        submission_name=cfg.submission_name,
-    )
+    for city in CITIES:
+        make_submission(
+            models[city],
+            dataloaders=dataloaders,
+            base_dir=cfg.dataset.root,
+            submission_name=cfg.submission_name,
+            cities=[city]
+        )
 
 
 def make_submission(
