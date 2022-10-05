@@ -94,9 +94,7 @@ class CheckpointSaver:
         return Path(save_path)
 
 
-def load_checkpoint(
-    model: nn.Module, load_path: Union[str, Path]
-) -> nn.Module:
-    checkpoint = torch.load(load_path)
+def load_checkpoint(model: nn.Module, load_path: Union[str, Path]) -> nn.Module:
+    checkpoint = torch.load(load_path, map_location=torch.device("cpu"))
     model.load_state_dict(checkpoint["model_state_dict"])
     return model
