@@ -62,9 +62,7 @@ def main(cfg: DictConfig) -> None:
     accelerator.init_trackers("example_project", config={})
 
     if cfg.pretrained:
-        model = load_checkpoint(
-            model, load_path=cfg.checkpoint_path
-        )
+        model = load_checkpoint(model, load_path=cfg.checkpoint_path)
     model = accelerator.prepare(model)
 
     optimizer, train_dataloader, val_dataloader, lr_scheduler = accelerator.prepare(

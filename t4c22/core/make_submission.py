@@ -110,7 +110,7 @@ def inference_cc_city_torch_geometric_to_pandas(
     for idx, data in enumerate(tqdm(test_dataloader)):
         data["x"] = torch.log10((data.x + 1).nan_to_num(1e-1))
         data["edge_attr"] = data.edge_attr.nan_to_num(0)
-        y_hat: Tensor = predict(data)
+        y_hat: Tensor = predict(data)["target"]
         df = test_dataloader.dataset.torch_road_graph_mapping._torch_to_df_cc(  # noqa
             data=y_hat, day="test", t=idx
         )

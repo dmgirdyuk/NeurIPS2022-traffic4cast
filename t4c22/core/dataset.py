@@ -194,6 +194,8 @@ class T4c22STILDataset(Dataset):  # pylint: disable=abstract-method  # noqa
             if cache_file.exists():
                 data = torch.load(cache_file)
                 data["edge_attr"] = torch.load(cache_file_edge)
+                if self.split == "train":
+                    data["y"] = {"target": data["y"], "t": t}
                 return data
 
         x = self.torch_road_graph_mapping.load_inputs_day_t(
