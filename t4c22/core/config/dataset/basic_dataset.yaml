@@ -22,7 +22,7 @@ train:
   edge_attributes: ${dataset.edge_attributes}
 
   cachedir: ${dataset.cachedir}
-  limit_ratio: 1.0
+  limit_ratio: 0.25
   split: train
 
 test:

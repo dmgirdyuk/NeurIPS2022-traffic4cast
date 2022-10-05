@@ -31,7 +31,7 @@ split_city_models: false
 
 optimizer:
   _target_: torch.optim.AdamW
-  lr: 0.01
+  lr: 0.001
   weight_decay: 0.0001
 
 loss_function:
@@ -40,13 +40,13 @@ loss_function:
 lr_scheduler:
   _target_: torch.optim.lr_scheduler.StepLR
   step_size: 1
-  gamma: 0.7
+  gamma: 0.8
 
 accelerator:
   _target_: accelerate.accelerator.Accelerator
 
-  cpu: true
-  mixed_precision: "no"  # "no","fp16","bf16"
+  cpu: false
+  mixed_precision: fp16  # no, fp16
   gradient_accumulation_steps: 1
 
 checkpoint_saver:
