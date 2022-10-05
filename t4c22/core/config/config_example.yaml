@@ -32,7 +32,7 @@ optimizer:
   weight_decay: 0.0001
 
 loss_function:
-  _target_: t4c22.core.loss.T4c22rossEntropyLoss
+  _target_: t4c22.core.loss.T4c22CrossEntropyLoss
 
 lr_scheduler:
   _target_: torch.optim.lr_scheduler.StepLR
