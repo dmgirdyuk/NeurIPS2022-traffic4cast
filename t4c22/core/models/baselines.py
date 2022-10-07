@@ -129,6 +129,16 @@ class T4c22GNN(torch.nn.Module):
         general_emb = torch.cat((node_emb_i, node_emb_j, edge_emb), dim=-1)
         output = self.final_aggregation_layer(general_emb)
 
+        return self._postprocess_output(output)
+
+    @staticmethod
+    def _postprocess_output(output: Tensor) -> dict[str, Tensor]:
+        return {"cc_scores": output}
+
+
+class T4c22GNNwT(T4c22GNN):
+    @staticmethod
+    def _postprocess_output(output: Tensor) -> dict[str, Tensor]:
         return {"cc_scores": output[:, :-1], "t": output[:, -1]}
 
 

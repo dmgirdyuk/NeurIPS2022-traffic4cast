@@ -55,7 +55,7 @@ def main(cfg: DictConfig) -> None:
     if not cfg.split_city_models:
         model = prepare_model(
             cfg=cfg,
-            checkpoint_path=pjoin(cfg.checkpoint_dir, cfg.checkpoint_name + ".pt"),
+            checkpoint_path=pjoin(cfg.checkpoint_dir, f"{cfg.checkpoint_name}.pt"),
             accelerator=accelerator,
         )
         models = {city: model for city in CITIES}
@@ -63,7 +63,9 @@ def main(cfg: DictConfig) -> None:
         models = {
             city: prepare_model(
                 cfg=cfg,
-                checkpoint_path=pjoin(cfg.checkpoint_dir, cfg.checkpoint_name + ".pt"),
+                checkpoint_path=pjoin(
+                    cfg.checkpoint_dir, f"{city}_{cfg.checkpoint_name}.pt"
+                ),
                 accelerator=accelerator,
             )
             for city in CITIES
@@ -79,18 +81,17 @@ def main(cfg: DictConfig) -> None:
         for city in CITIES
     }
 
-    for city in CITIES:
-        make_submission(
-            models[city],
-            dataloaders=dataloaders,
-            base_dir=cfg.dataset.root,
-            submission_name=cfg.submission_name,
-            cities=[city],
-        )
+    make_submission(
+        models,
+        dataloaders=dataloaders,
+        base_dir=cfg.dataset.root,
+        submission_name=cfg.submission_name,
+        cities=CITIES,
+    )
 
 
 def make_submission(
-    model: nn.Module,
+    model: dict[str, nn.Module],
     dataloaders: dict[str, DataLoader],
     base_dir: Path,
     submission_name: str,
@@ -104,7 +105,7 @@ def make_submission(
         assert city in dataloaders
         test_dataloader = dataloaders[city]
         df_city = inference_cc_city_torch_geometric_to_pandas(
-            test_dataloader=test_dataloader, predict=model
+            test_dataloader=test_dataloader, predict=model[city]
         )
 
         labels_dir = base_dir / "submission" / submission_name / city / "labels"

@@ -27,7 +27,7 @@ pretrained: false
 
 checkpoint_dir: ${results_dir}/models
 checkpoint_name: model_checkpoint_best
-split_city_models: false
+split_city_models: true
 
 optimizer:
   _target_: torch.optim.AdamW
@@ -35,7 +35,14 @@ optimizer:
   weight_decay: 0.0001
 
 loss_function:
-  _target_: t4c22.core.loss.T4c22CrossEntropyLoss
+  _target_: t4c22.core.loss.CustomCrossEntropyLoss
+  ignore_index: -1
+  add_custom_term: true
+
+metric_function:
+  _target_: t4c22.core.loss.CustomCrossEntropyLoss
+  ignore_index: -1
+  add_custom_term: false
 
 lr_scheduler:
   _target_: torch.optim.lr_scheduler.StepLR

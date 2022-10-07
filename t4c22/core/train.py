@@ -34,6 +34,7 @@ def train(
     train_dataloader: DataLoader,
     val_dataloader: DataLoader,
     loss_function: Callable[[Any, Any], torch.Tensor],
+    metric_function: Callable[[Any, Any], torch.Tensor],
     lr_scheduler: _LRScheduler,
     accelerator: Accelerator,
     epoch_num: int,
@@ -42,6 +43,7 @@ def train(
     for epoch in tqdm(range(epoch_num)):
         _logger.info("Epoch %d/%d", epoch, epoch_num)
         total_train_loss, total_val_loss = torch.zeros(1), torch.zeros(1)
+        total_train_metric, total_val_metric = torch.zeros(1), torch.zeros(1)
 
         model.train()
         for batch in tqdm(train_dataloader):
@@ -50,14 +52,17 @@ def train(
                 optimizer.zero_grad()
                 outputs = model(batch)
                 loss = loss_function(outputs, batch.y)
+                metric = metric_function(outputs, batch.y)
                 total_train_loss += loss.sum().item()
+                total_train_metric += metric.sum().item()
                 accelerator.backward(loss)
                 optimizer.step()
 
         lr_scheduler.step()
         total_train_loss /= len(train_dataloader)
-        accelerator.log({"training_loss_epoch": total_train_loss}, step=epoch)
+        # accelerator.log({"training_loss_epoch": total_train_loss}, step=epoch)
         _logger.info("Training loss: %.5f", total_train_loss)
+        _logger.info("Training metric: %.5f", total_train_metric)
 
         model.eval()
         for batch in tqdm(val_dataloader):
@@ -65,14 +70,17 @@ def train(
                 preprocess_batch(batch)
                 outputs = model(batch)
                 loss = loss_function(outputs, batch.y)
+                metric = metric_function(outputs, batch.y)
                 total_val_loss += loss.sum().item()
+                total_val_metric += metric.sum().item()
 
                 # accelerate.gather for distributed evaluation
                 # predictions = outputs.argmax(dim=-1)
 
         total_val_loss /= len(val_dataloader)
-        accelerator.log({"validation_loss_epoch": total_val_loss}, step=epoch)
+        # accelerator.log({"validation_loss_epoch": total_val_loss}, step=epoch)
         _logger.info("Validation loss: %.5f", total_val_loss)
+        _logger.info("Validation metric: %.5f", total_val_metric)
 
         checkpoint_saver.save(metric_val=total_val_loss.detach().numpy(), epoch=epoch)
 
