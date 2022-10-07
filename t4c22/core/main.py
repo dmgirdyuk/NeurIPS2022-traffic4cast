@@ -24,10 +24,13 @@ from hydra.utils import instantiate
 from omegaconf import DictConfig
 from torch import nn, optim
 from torch.optim.lr_scheduler import _LRScheduler  # noqa
-from torch.utils.data.dataloader import Dataset
 
 from t4c22.core.checkpointer import CheckpointSaver, load_checkpoint
-from t4c22.core.dataset import get_avg_class_weights, get_train_val_dataloaders
+from t4c22.core.dataset import (
+    T4c22STILDataset,
+    get_avg_class_weights,
+    get_train_val_dataloaders,
+)
 from t4c22.core.train import train
 from t4c22.core.utils import get_project_root, seed_everything
 
@@ -45,8 +48,13 @@ def main(cfg: DictConfig) -> None:
     )
     city_class_weights = get_avg_class_weights().to(accelerator.device)
     loss_function: Callable[[Any, Any], Any] = instantiate(
-        cfg.loss_function, weight=city_class_weights, ignore_index=-1
+        cfg.loss_function, weight=city_class_weights
     )
+
+    metric_function: Callable[[Any, Any], Any] = instantiate(
+        cfg.metric_function, weight=city_class_weights
+    )
+
     lr_scheduler: _LRScheduler = instantiate(cfg.lr_scheduler, optimizer=optimizer)
     checkpoint_saver: CheckpointSaver = instantiate(
         cfg.checkpoint_saver, accelerator=accelerator, model=model
@@ -54,7 +62,7 @@ def main(cfg: DictConfig) -> None:
 
     cfg.dataset.root = Path(cfg.dataset.root)
     cfg.dataset.cachedir = Path(cfg.dataset.cachedir)
-    dataset: Dataset = instantiate(cfg.dataset.train)
+    dataset: T4c22STILDataset = instantiate(cfg.dataset.train)
     train_dataloader, val_dataloader = get_train_val_dataloaders(
         dataset, split_ratio=cfg.train_val_split, num_workers=cfg.num_workers
     )
@@ -76,6 +84,7 @@ def main(cfg: DictConfig) -> None:
         train_dataloader=train_dataloader,
         val_dataloader=val_dataloader,
         loss_function=loss_function,
+        metric_function=metric_function,
         lr_scheduler=lr_scheduler,
         accelerator=accelerator,
         epoch_num=cfg.epoch_num,

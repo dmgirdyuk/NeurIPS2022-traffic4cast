@@ -67,9 +67,7 @@ class T4c22GNN(torch.nn.Module):
         hidden_edge_numer = hidden_features_mlp[0] - hidden_edge_cat
         numer_emb_hidden_dim = hidden_features_mlp[1] - cat_emb_hidden_dim
         self.edge_emb_numer_mlp = nn.Sequential(
-            nn.Linear(
-                in_edge_features - cat_features_num, hidden_edge_numer
-            ),
+            nn.Linear(in_edge_features - cat_features_num, hidden_edge_numer),
             nn.BatchNorm1d(hidden_edge_numer),
             nn.GELU(),
             nn.Dropout(p=dropout),
@@ -98,7 +96,7 @@ class T4c22GNN(torch.nn.Module):
             nn.Linear(hidden_final, out_features),
         )
 
-    def forward(self, data: Data) -> Tensor:
+    def forward(self, data: Data) -> dict[str, Tensor]:
         edge_index: Tensor = data.edge_index
         node_features: Tensor = data.x
         edge_numer_features: Tensor = data.edge_attr[:, : -self.cat_features_num]
@@ -129,9 +127,19 @@ class T4c22GNN(torch.nn.Module):
         node_emb_j = torch.index_select(node_emb, 0, data.edge_index[1])
 
         general_emb = torch.cat((node_emb_i, node_emb_j, edge_emb), dim=-1)
-        general_emb = self.final_aggregation_layer(general_emb)
+        output = self.final_aggregation_layer(general_emb)
 
-        return general_emb
+        return self._postprocess_output(output)
+
+    @staticmethod
+    def _postprocess_output(output: Tensor) -> dict[str, Tensor]:
+        return {"cc_scores": output}
+
+
+class T4c22GNNwT(T4c22GNN):
+    @staticmethod
+    def _postprocess_output(output: Tensor) -> dict[str, Tensor]:
+        return {"cc_scores": output[:, :-1], "t": output[:, -1]}
 
 
 # pylint: disable=abstract-method, arguments-differ

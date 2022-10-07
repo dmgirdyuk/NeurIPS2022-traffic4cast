@@ -1,8 +1,4 @@
 root: ${data_path}
-cities:
-  - london
-  - melbourne
-  - madrid
 edge_attributes:
   - parsed_maxspeed
   - importance
@@ -22,8 +18,13 @@ train:
   edge_attributes: ${dataset.edge_attributes}
 
   cachedir: ${dataset.cachedir}
-  limit_ratio: 0.5
+  limit_ratio: 0.25
   split: train
+  cities:
+    - london
+#    - madrid
+#    - melbourne
+
 
 test:
   _target_: t4c22.core.dataset.T4c22STILDataset

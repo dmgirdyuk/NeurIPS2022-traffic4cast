@@ -1,4 +1,5 @@
-_target_: t4c22.core.models.baselines.T4c22GNN
+#_target_: t4c22.core.models.baselines.T4c22GNN
+_target_: t4c22.core.models.baselines.T4c22GNNwT
 
 in_node_features: 4
 in_edge_features: 8  # len ${dataset.edge_attributes}
@@ -8,6 +9,6 @@ cat_emb_sizes:
 hidden_features_mlp: [32, 128]
 hidden_features_gnn: 128
 hidden_final: 128
-out_features: 3  # 3 congestion classes (green, yellow, red)
+out_features: 4  # 3 congestion classes (green, yellow, red) + 1 for t
 gnn_layer_num: 10
 dropout: 0.5
