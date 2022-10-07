@@ -60,6 +60,7 @@ def train(
 
         lr_scheduler.step()
         total_train_loss /= len(train_dataloader)
+        total_train_metric /= len(train_dataloader)
         # accelerator.log({"training_loss_epoch": total_train_loss}, step=epoch)
         _logger.info("Training loss: %.5f", total_train_loss)
         _logger.info("Training metric: %.5f", total_train_metric)
@@ -78,11 +79,12 @@ def train(
                 # predictions = outputs.argmax(dim=-1)
 
         total_val_loss /= len(val_dataloader)
+        total_val_metric /= len(val_dataloader)
         # accelerator.log({"validation_loss_epoch": total_val_loss}, step=epoch)
         _logger.info("Validation loss: %.5f", total_val_loss)
         _logger.info("Validation metric: %.5f", total_val_metric)
 
-        checkpoint_saver.save(metric_val=total_val_loss.detach().numpy(), epoch=epoch)
+        checkpoint_saver.save(metric_val=total_val_metric.detach().numpy(), epoch=epoch)
 
     accelerator.end_training()
 
