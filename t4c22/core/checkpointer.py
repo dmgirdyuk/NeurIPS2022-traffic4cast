@@ -43,6 +43,7 @@ class CheckpointSaver:
         metric_name: str,
         save_dir: str,
         max_history: int = 1,
+        save_on_val: bool = True,
         should_minimize: Optional[bool] = True,
     ):
         self._accelerator = accelerator
@@ -50,6 +51,7 @@ class CheckpointSaver:
         self.metric_name = metric_name
         self.save_dir = Path(save_dir)
         self.max_history = max_history
+        self.save_on_val = save_on_val
         self.should_minimize = should_minimize
 
         self._storage: List[Checkpoint] = []

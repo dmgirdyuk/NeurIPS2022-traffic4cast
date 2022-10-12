@@ -56,7 +56,7 @@ def main(cfg: DictConfig) -> None:
     )
 
     lr_scheduler: _LRScheduler = instantiate(cfg.lr_scheduler, optimizer=optimizer)
-    checkpoint_saver: CheckpointSaver = instantiate(
+    checkpointer: CheckpointSaver = instantiate(
         cfg.checkpoint_saver, accelerator=accelerator, model=model
     )
 
@@ -88,7 +88,7 @@ def main(cfg: DictConfig) -> None:
         lr_scheduler=lr_scheduler,
         accelerator=accelerator,
         epoch_num=cfg.epoch_num,
-        checkpoint_saver=checkpoint_saver,
+        checkpointer=checkpointer,
     )
 
 

@@ -32,13 +32,13 @@ def train(
     model: nn.Module,
     optimizer: optim.Optimizer,
     train_dataloader: DataLoader,
-    val_dataloader: DataLoader,
+    val_dataloader: DataLoader | None,
     loss_function: Callable[[Any, Any], torch.Tensor],
     metric_function: Callable[[Any, Any], torch.Tensor],
     lr_scheduler: _LRScheduler,
     accelerator: Accelerator,
     epoch_num: int,
-    checkpoint_saver: CheckpointSaver,
+    checkpointer: CheckpointSaver,
 ) -> None:
     for epoch in tqdm(range(epoch_num)):
         _logger.info("Epoch %d/%d", epoch, epoch_num)
@@ -52,6 +52,7 @@ def train(
                 optimizer.zero_grad()
                 outputs = model(batch)
                 loss = loss_function(outputs, batch.y)
+                assert not torch.isnan(loss)
                 metric = metric_function(outputs, batch.y)
                 total_train_loss += loss.sum().item()
                 total_train_metric += metric.sum().item()
@@ -61,9 +62,16 @@ def train(
         lr_scheduler.step()
         total_train_loss /= len(train_dataloader)
         total_train_metric /= len(train_dataloader)
-        # accelerator.log({"training_loss_epoch": total_train_loss}, step=epoch)
         _logger.info("Training loss: %.5f", total_train_loss)
         _logger.info("Training metric: %.5f", total_train_metric)
+
+        if not checkpointer.save_on_val:
+            checkpointer.save(
+                metric_val=total_train_metric.detach().numpy(), epoch=epoch
+            )
+
+        if val_dataloader is None:
+            continue
 
         model.eval()
         for batch in tqdm(val_dataloader):
@@ -71,25 +79,23 @@ def train(
                 preprocess_batch(batch)
                 outputs = model(batch)
                 loss = loss_function(outputs, batch.y)
+                assert not torch.isnan(loss)
                 metric = metric_function(outputs, batch.y)
                 total_val_loss += loss.sum().item()
                 total_val_metric += metric.sum().item()
 
-                # accelerate.gather for distributed evaluation
-                # predictions = outputs.argmax(dim=-1)
-
         total_val_loss /= len(val_dataloader)
         total_val_metric /= len(val_dataloader)
-        # accelerator.log({"validation_loss_epoch": total_val_loss}, step=epoch)
         _logger.info("Validation loss: %.5f", total_val_loss)
         _logger.info("Validation metric: %.5f", total_val_metric)
 
-        checkpoint_saver.save(metric_val=total_val_metric.detach().numpy(), epoch=epoch)
+        if not checkpointer.save_on_val:
+            checkpointer.save(metric_val=total_val_metric.detach().numpy(), epoch=epoch)
 
     accelerator.end_training()
 
 
-def preprocess_batch(data: Data):
+def preprocess_batch(data: Data) -> None:
     # Both data and labels are sparse. Loss function is masked by -1's
     data["x"] = torch.log10((data.x + 1).nan_to_num(1e-1))
     data["edge_attr"] = data.edge_attr.nan_to_num(0)

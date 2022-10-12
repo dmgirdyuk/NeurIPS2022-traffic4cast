@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime as dt
 from functools import partial
 from pathlib import Path
 from typing import Generator, Optional, Tuple
@@ -45,24 +46,26 @@ def get_train_val_dataloaders(
     batch_size: int = 1,
     shuffle: bool = True,
     num_workers: int = 0,
-) -> Tuple[DataLoader, DataLoader]:
+) -> Tuple[DataLoader, DataLoader | None]:
 
     train_idxs, val_idxs = sample_dataset_by_weeks(dataset, split_ratio)
     train_dataset = Subset(dataset, train_idxs)
-    val_dataset = Subset(dataset, val_idxs)
-
     train_dataloader = DataLoader(
         dataset=train_dataset,  # noqa
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
     )
-    val_dataloader = DataLoader(
-        dataset=val_dataset,  # noqa
-        batch_size=batch_size,
-        shuffle=shuffle,
-        num_workers=num_workers,
-    )
+
+    val_dataloader = None
+    if len(val_idxs):
+        val_dataset = Subset(dataset, val_idxs)
+        val_dataloader = DataLoader(
+            dataset=val_dataset,  # noqa
+            batch_size=batch_size,
+            shuffle=shuffle,
+            num_workers=num_workers,
+        )
 
     return train_dataloader, val_dataloader
 
@@ -195,7 +198,13 @@ class T4c22STILDataset(Dataset):  # pylint: disable=abstract-method  # noqa
                 data = torch.load(cache_file)
                 data["edge_attr"] = torch.load(cache_file_edge)
                 if self.split == "train":
-                    data["y"] = {"target": data.y, "t": t}
+                    int_day = dt.strptime(day, "%Y-%m-%d").weekday()
+                    data["y"] = {
+                        "target": data.y,
+                        "t": t,
+                        "working_day": int(int_day < 5),
+                        "day": int_day,
+                    }
                 return data
 
         x = self.torch_road_graph_mapping.load_inputs_day_t(

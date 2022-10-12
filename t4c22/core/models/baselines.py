@@ -16,6 +16,7 @@ from typing import Tuple
 
 import torch
 from torch import Tensor, nn
+from torch.nn import functional as F  # noqa
 from torch_geometric.data import Data
 from torch_geometric.nn import MessagePassing  # noqa
 
@@ -140,6 +141,26 @@ class T4c22GNNwT(T4c22GNN):
     @staticmethod
     def _postprocess_output(output: Tensor) -> dict[str, Tensor]:
         return {"cc_scores": output[:, :-1], "t": output[:, -1]}
+
+
+class T4c22GNNwTwWD(T4c22GNN):
+    @staticmethod
+    def _postprocess_output(output: Tensor) -> dict[str, Tensor]:
+        return {
+            "cc_scores": output[:, :-2],
+            "t": output[:, -2],
+            "working_day": output[:, -1],
+        }
+
+
+class T4c22GNNwTwD(T4c22GNN):
+    @staticmethod
+    def _postprocess_output(output: Tensor) -> dict[str, Tensor]:
+        return {
+            "cc_scores": output[:, :-7],
+            "t": output[:, -7],
+            "day": output[:, -6:],
+        }
 
 
 # pylint: disable=abstract-method, arguments-differ

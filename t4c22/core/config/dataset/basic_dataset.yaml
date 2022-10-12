@@ -18,7 +18,7 @@ train:
   edge_attributes: ${dataset.edge_attributes}
 
   cachedir: ${dataset.cachedir}
-  limit_ratio: 0.25
+  limit_ratio: 1
   split: train
   cities:
     - london
