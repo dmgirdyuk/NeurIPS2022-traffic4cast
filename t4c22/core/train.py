@@ -89,7 +89,7 @@ def train(
         _logger.info("Validation loss: %.5f", total_val_loss)
         _logger.info("Validation metric: %.5f", total_val_metric)
 
-        if not checkpointer.save_on_val:
+        if checkpointer.save_on_val:
             checkpointer.save(metric_val=total_val_metric.detach().numpy(), epoch=epoch)
 
     accelerator.end_training()
