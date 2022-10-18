@@ -92,8 +92,6 @@ def train(
         if checkpointer.save_on_val:
             checkpointer.save(metric_val=total_val_metric.detach().numpy(), epoch=epoch)
 
-    accelerator.end_training()
-
 
 def preprocess_batch(data: Data) -> None:
     # Both data and labels are sparse. Loss function is masked by -1's

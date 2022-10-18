@@ -17,7 +17,7 @@ from __future__ import annotations
 from datetime import datetime as dt
 from functools import partial
 from pathlib import Path
-from typing import Generator, Optional, Tuple
+from typing import Generator, Tuple
 
 import numpy as np
 import torch
@@ -111,20 +111,20 @@ CITIES = ["london", "madrid", "melbourne"]
 class T4c22STILDataset(Dataset):  # pylint: disable=abstract-method  # noqa
     def __init__(
         self,
-        root: Path | str,
-        edge_attributes: Optional[list[str]] = None,
+        root: Path,
+        cachedir: Path,
+        edge_attributes: list[str] | None = None,
         split: str = "train",
-        cachedir: Optional[Path | str] = None,
-        limit_ratio: Optional[float] = 1.0,
+        limit_ratio: float | None = None,
         day_t_filter: DAY_T_FILTER = day_t_filter_weekdays_daytime_only,
         counters_only: bool = False,
-        cities: Optional[list[str]] = None,
+        cities: list[str] | None = None,
     ):
         super().__init__()
-        self.root: Path = root
+        self.root = root
         self.split = split
         self.cachedir = cachedir
-        self.limit_ratio = limit_ratio
+        self.limit_ratio = limit_ratio if limit_ratio is not None else 1.0
         self.day_t_filter = day_t_filter
         self.counters_only = counters_only
         self.cities = cities if cities is not None else CITIES
@@ -201,9 +201,8 @@ class T4c22STILDataset(Dataset):  # pylint: disable=abstract-method  # noqa
                     int_day = dt.strptime(day, "%Y-%m-%d").weekday()
                     data["y"] = {
                         "target": data.y,
-                        "t": t,
-                        "working_day": int(int_day < 5),
-                        "day": int_day,
+                        "t": torch.Tensor([t]),
+                        "working_day": torch.Tensor([int_day < 5]),
                     }
                 return data
 

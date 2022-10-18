@@ -64,10 +64,11 @@ def main(cfg: DictConfig) -> None:
     cfg.dataset.cachedir = Path(cfg.dataset.cachedir)
     dataset: T4c22STILDataset = instantiate(cfg.dataset.train)
     train_dataloader, val_dataloader = get_train_val_dataloaders(
-        dataset, split_ratio=cfg.train_val_split, num_workers=cfg.num_workers
+        dataset=dataset,
+        split_ratio=cfg.train_val_split,
+        batch_size=cfg.batch_size,
+        num_workers=cfg.num_workers,
     )
-
-    accelerator.init_trackers("example_project", config={})
 
     if cfg.pretrained:
         checkpoint_path = pjoin(cfg.checkpoint_dir, cfg.checkpoint_name + ".pt")

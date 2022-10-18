@@ -34,6 +34,7 @@ class T4c22GNN(torch.nn.Module):
         out_features: int,
         gnn_layer_num: int = 3,
         dropout: float = 0.0,
+        dropout_gnn: float = 0.0,
     ):
         super().__init__()
 
@@ -84,6 +85,7 @@ class T4c22GNN(torch.nn.Module):
                 GNNLayer(
                     in_features=hidden_features_gnn,
                     out_features=hidden_features_gnn,
+                    dropout=dropout_gnn,
                 )
                 for _ in range(gnn_layer_num)
             ]
