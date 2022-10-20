@@ -1,0 +1,10 @@
+_target_: t4c22.core.models.no_edge_attr_model.T4c22GNNwTwWD
+
+in_node_features: 4
+hidden_features_mlp: [128, 512]
+hidden_features_gnn: 512
+hidden_final: 256
+out_features: 5  # 3 congestion classes (green, yellow, red) + 2 for t and wd
+gnn_layer_num: 4
+dropout: 0.5
+dropout_gnn: 0.0

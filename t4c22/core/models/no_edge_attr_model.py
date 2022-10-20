@@ -25,9 +25,6 @@ class T4c22GNN(torch.nn.Module):
     def __init__(
         self,
         in_node_features: int,
-        in_edge_features: int,
-        cat_features_num: int,
-        cat_emb_sizes: list[tuple[int, int]],
         hidden_features_mlp: tuple[int, int],
         hidden_features_gnn: int,
         hidden_final: int,
@@ -38,8 +35,6 @@ class T4c22GNN(torch.nn.Module):
     ):
         super().__init__()
 
-        self.cat_features_num = cat_features_num
-
         self.node_emb_mlp = nn.Sequential(
             nn.Linear(in_node_features, hidden_features_mlp[0]),
             nn.BatchNorm1d(hidden_features_mlp[0]),
@@ -47,34 +42,6 @@ class T4c22GNN(torch.nn.Module):
             nn.Dropout(p=dropout),
             nn.Linear(hidden_features_mlp[0], hidden_features_mlp[1]),
             nn.BatchNorm1d(hidden_features_mlp[1]),
-            nn.GELU(),
-            nn.Dropout(p=dropout),
-        )
-
-        self.edge_emb_cat_layers = nn.ModuleList(
-            nn.Embedding(num, dim) for num, dim in cat_emb_sizes
-        )
-        hidden_edge_cat = sum((dim for _, dim in cat_emb_sizes))
-        numer_to_cat_ratio = hidden_edge_cat / hidden_features_mlp[0]
-        cat_emb_hidden_dim = int(numer_to_cat_ratio * hidden_features_mlp[1])
-        self.edge_emb_cat_mlp = nn.Sequential(
-            nn.BatchNorm1d(hidden_edge_cat),
-            nn.GELU(),
-            nn.Dropout(p=dropout),
-            nn.Linear(hidden_edge_cat, cat_emb_hidden_dim),
-            nn.BatchNorm1d(cat_emb_hidden_dim),
-            nn.GELU(),
-            nn.Dropout(p=dropout),
-        )
-        hidden_edge_numer = hidden_features_mlp[0] - hidden_edge_cat
-        numer_emb_hidden_dim = hidden_features_mlp[1] - cat_emb_hidden_dim
-        self.edge_emb_numer_mlp = nn.Sequential(
-            nn.Linear(in_edge_features - cat_features_num, hidden_edge_numer),
-            nn.BatchNorm1d(hidden_edge_numer),
-            nn.GELU(),
-            nn.Dropout(p=dropout),
-            nn.Linear(hidden_edge_numer, numer_emb_hidden_dim),
-            nn.BatchNorm1d(numer_emb_hidden_dim),
             nn.GELU(),
             nn.Dropout(p=dropout),
         )
@@ -104,31 +71,15 @@ class T4c22GNN(torch.nn.Module):
         node_features: Tensor = data.x
         node_emb = self.node_emb_mlp(node_features)
 
-        edge_numer_features: Tensor = data.edge_attr[:, : -self.cat_features_num]
-        edge_cat_features: Tensor = data.edge_attr[:, -self.cat_features_num :].int()
-        edge_emb_numer = self.edge_emb_numer_mlp(edge_numer_features)
-        edge_emb_cat = torch.cat(
-            [
-                emb_layer(edge_cat_features[:, i])
-                for i, emb_layer in enumerate(self.edge_emb_cat_layers)
-            ],
-            dim=-1,
-        )
-        edge_emb_cat = self.edge_emb_cat_mlp(edge_emb_cat)
-        edge_emb = torch.cat((edge_emb_numer, edge_emb_cat), dim=-1)
-
-        node_emb_pre_gnn, edge_emb_pre_gnn = node_emb, edge_emb
+        node_emb_pre_gnn = node_emb
         for i, layer in enumerate(self.node_gnn_layers):
-            node_emb, edge_emb = layer(
-                x=node_emb, edge_index=edge_index, edge_attr=edge_emb
-            )
+            node_emb = layer(x=node_emb, edge_index=edge_index)
         node_emb += node_emb_pre_gnn
-        edge_emb += edge_emb_pre_gnn
 
         node_emb_i = torch.index_select(node_emb, 0, data.edge_index[0])
         node_emb_j = torch.index_select(node_emb, 0, data.edge_index[1])
 
-        general_emb = edge_emb + node_emb_j - node_emb_i
+        general_emb = node_emb_j - node_emb_i
         output = self.final_aggregation_layer(general_emb)
 
         return self._postprocess_output(output)
@@ -136,12 +87,6 @@ class T4c22GNN(torch.nn.Module):
     @staticmethod
     def _postprocess_output(output: Tensor) -> dict[str, Tensor]:
         return {"cc_scores": output}
-
-
-class T4c22GNNwT(T4c22GNN):
-    @staticmethod
-    def _postprocess_output(output: Tensor) -> dict[str, Tensor]:
-        return {"cc_scores": output[:, :-1], "t": output[:, -1]}
 
 
 class T4c22GNNwTwWD(T4c22GNN):
@@ -154,23 +99,13 @@ class T4c22GNNwTwWD(T4c22GNN):
         }
 
 
-class T4c22GNNwTwD(T4c22GNN):
-    @staticmethod
-    def _postprocess_output(output: Tensor) -> dict[str, Tensor]:
-        return {
-            "cc_scores": output[:, :-7],
-            "t": output[:, -7],
-            "day": output[:, -6:],
-        }
-
-
 # pylint: disable=abstract-method, arguments-differ
 class GNNLayer(MessagePassing):  # noqa
     def __init__(self, in_features: int, out_features: int, dropout: float = 0.0):
         super().__init__(node_dim=-2, aggr="sum")
 
         self.message_net = nn.Sequential(
-            nn.Linear(in_features, out_features),
+            nn.Linear(2 * in_features, out_features),
             nn.LayerNorm(out_features),
             nn.Dropout(p=dropout),
             nn.GELU(),
@@ -181,30 +116,15 @@ class GNNLayer(MessagePassing):  # noqa
             nn.Dropout(p=dropout),
             nn.GELU(),
         )
-        self.edge_update_net = nn.Sequential(
-            nn.Linear(in_features, out_features),
-            nn.LayerNorm(out_features),
-            nn.Dropout(p=dropout),
-            nn.GELU(),
-        )
 
-    def forward(
-        self, x: Tensor, edge_index: Tensor, edge_attr: Tensor
-    ) -> Tuple[Tensor, Tensor]:
-        x = self.propagate(edge_index, x=x, edge_attr=edge_attr)
-        edge_attr = self.edge_updater(edge_index, x=x, edge_attr=edge_attr)
-        return x, edge_attr
+    def forward(self, x: Tensor, edge_index: Tensor) -> Tuple[Tensor, Tensor]:
+        x = self.propagate(edge_index, x=x)
+        return x
 
-    def message(self, x_i: Tensor, x_j: Tensor, edge_attr: Tensor) -> Tensor:  # noqa
-        message = self.message_net(edge_attr + x_j - x_i)
+    def message(self, x_i: Tensor, x_j: Tensor) -> Tensor:  # noqa
+        message = self.message_net(torch.cat((x_i, x_j), dim=-1))
         return message
 
     def update(self, message: Tensor, x: Tensor) -> Tensor:  # noqa
         x += self.node_update_net(torch.cat((x, message), dim=-1))
         return x
-
-    def edge_update(  # noqa
-        self, x_i: Tensor, x_j: Tensor, edge_attr: Tensor  # noqa
-    ) -> Tensor:  # noqa
-        edge_attr += self.edge_update_net(edge_attr + x_j - x_i)
-        return edge_attr

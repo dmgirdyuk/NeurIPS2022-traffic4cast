@@ -21,6 +21,7 @@ from typing import Generator, Tuple
 
 import numpy as np
 import torch
+from torch import Tensor
 from torch.utils.data import Subset
 from torch_geometric.data import Data, Dataset
 from torch_geometric.loader.dataloader import DataLoader
@@ -83,9 +84,9 @@ def sample_dataset_by_weeks(
     return train_idxs, val_idxs
 
 
-def get_city_class_weights(city: str = "london") -> torch.Tensor:
+def get_city_class_weights(city: str = "london") -> Tensor:
     city_class_fractions = class_fractions[city]
-    city_class_weights = torch.Tensor(
+    city_class_weights = Tensor(
         get_weights_from_class_fractions(
             [city_class_fractions[c] for c in ["green", "yellow", "red"]]
         )
@@ -93,8 +94,8 @@ def get_city_class_weights(city: str = "london") -> torch.Tensor:
     return city_class_weights
 
 
-def get_avg_class_weights() -> torch.Tensor:
-    city_class_weights = torch.Tensor(
+def get_avg_class_weights() -> Tensor:
+    city_class_weights = Tensor(
         [
             (0.5367906303432076 + 0.4976221039083026 + 0.7018930324884697) / 3,
             (0.35138063340805714 + 0.3829591430424158 + 0.2223245729555099) / 3,
@@ -103,6 +104,23 @@ def get_avg_class_weights() -> torch.Tensor:
     )
     city_class_weights = city_class_weights.sum() / city_class_weights
     return city_class_weights.float()
+
+
+EDGE_FEATURES_MAPPER = {
+    "parsed_maxspeed": 0,
+    "importance": 1,
+    "length_meters": 2,
+    "counter_distance": 3,
+    "oneway": 4,
+    "lanes": 5,
+    "tunnel": 6,
+    "highway": 7,
+}
+
+
+def extract_edge_features(edge_attr: Tensor, edge_names: list[str]) -> Tensor:
+    indexes = [EDGE_FEATURES_MAPPER[edge_name] for edge_name in edge_names]
+    return edge_attr[:, indexes]
 
 
 CITIES = ["london", "madrid", "melbourne"]
@@ -124,6 +142,7 @@ class T4c22STILDataset(Dataset):  # pylint: disable=abstract-method  # noqa
         self.root = root
         self.split = split
         self.cachedir = cachedir
+        self.edge_attributes = edge_attributes
         self.limit_ratio = limit_ratio if limit_ratio is not None else 1.0
         self.day_t_filter = day_t_filter
         self.counters_only = counters_only
@@ -191,19 +210,26 @@ class T4c22STILDataset(Dataset):  # pylint: disable=abstract-method  # noqa
         self.city, _, day, t = self.city_day_t[idx]
         self.torch_road_graph_mapping = self.city_road_graph_mapping[self.city]
 
+        def extend_target(sample_data: Data) -> Data:
+            int_day = dt.strptime(day, "%Y-%m-%d").weekday()
+            sample_data["y"] = {
+                "target": sample_data.y,
+                "t": Tensor([t]),
+                "working_day": Tensor([int_day < 5]),
+            }
+            return sample_data
+
         cache_file = self.cachedir / f"cc_labels_{self.city}_{day}_{t}.pt"
         cache_file_edge = self.cachedir / f"edge_attr_{self.city}.pt"
         if self.cachedir is not None:
             if cache_file.exists():
                 data = torch.load(cache_file)
-                data["edge_attr"] = torch.load(cache_file_edge)
+                data["edge_attr"] = extract_edge_features(
+                    edge_attr=torch.load(cache_file_edge),
+                    edge_names=self.edge_attributes,
+                )
                 if self.split == "train":
-                    int_day = dt.strptime(day, "%Y-%m-%d").weekday()
-                    data["y"] = {
-                        "target": data.y,
-                        "t": torch.Tensor([t]),
-                        "working_day": torch.Tensor([int_day < 5]),
-                    }
+                    data = extend_target(data)
                 return data
 
         x = self.torch_road_graph_mapping.load_inputs_day_t(
@@ -231,12 +257,18 @@ class T4c22STILDataset(Dataset):  # pylint: disable=abstract-method  # noqa
             edge_index=self.torch_road_graph_mapping.edge_index,
             y=y,
         )
+        if self.split == "train":
+            data = extend_target(data)
+
         edge_attr = self.torch_road_graph_mapping.edge_attr
         if self.cachedir is not None:
             self.cachedir.mkdir(exist_ok=True, parents=True)
             torch.save(data, cache_file)
             torch.save(edge_attr, cache_file_edge)
-        data["edge_attr"] = edge_attr
+        data["edge_attr"] = extract_edge_features(
+            edge_attr=edge_attr,
+            edge_names=self.edge_attributes,
+        )
         return data
 
 

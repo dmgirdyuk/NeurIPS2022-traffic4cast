@@ -1,18 +1,14 @@
-#_target_: t4c22.core.models.baselines.T4c22GNN
-#_target_: t4c22.core.models.baselines.T4c22GNNwT
-#_target_: t4c22.core.models.baselines.T4c22GNNwTwD
 _target_: t4c22.core.models.baselines.T4c22GNNwTwWD
 
 in_node_features: 4
 in_edge_features: 8  # len ${dataset.edge_attributes}
-cat_features_num: 1
+cat_features_num: 1  # assert cat_features_num > 0
 cat_emb_sizes:
   - [12, 5]  # highway
-hidden_features_mlp: [32, 128]
-hidden_features_gnn: 128
-hidden_final: 128
-out_features: 5  # 3 congestion classes (green, yellow, red) + 1 for t + 1 for day/working_day
-#out_features: 4  # 3 congestion classes (green, yellow, red) + 1 for t
-#out_features: 3  # 3 congestion classes (green, yellow, red)
-gnn_layer_num: 12
+hidden_features_mlp: [128, 300]
+hidden_features_gnn: 300
+hidden_final: 150
+out_features: 5  # 3 congestion classes (green, yellow, red) + 2 for t and wd
+gnn_layer_num: 4
 dropout: 0.5
+dropout_gnn: 0.0

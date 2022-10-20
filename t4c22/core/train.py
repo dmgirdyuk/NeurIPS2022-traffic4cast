@@ -94,7 +94,7 @@ def train(
 
 
 def preprocess_batch(data: Data) -> None:
-    # Both data and labels are sparse. Loss function is masked by -1's
     data["x"] = torch.log10((data.x + 1).nan_to_num(1e-1))
-    data["edge_attr"] = data.edge_attr.nan_to_num(0)
+    if "edge_attr" in data and data["edge_attr"] is not None:
+        data["edge_attr"] = data.edge_attr.nan_to_num(0)
     data["y"]["target"] = data.y["target"].nan_to_num(-1).long()
